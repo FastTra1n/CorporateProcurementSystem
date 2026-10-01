@@ -2,10 +2,17 @@ plugins {
     application
     id("java")
     id("com.gradleup.shadow") version "9.6.1"
+    id("org.openjfx.javafxplugin") version "0.1.0"
 }
 
 group = "com.team"
 version = "1.0-SNAPSHOT"
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
+}
 
 repositories {
     mavenCentral()
@@ -24,6 +31,14 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.13.4")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("com.h2database:h2:2.3.232")
+}
+
+javafx {
+    version = "25"
+    modules = listOf(
+        "javafx.controls",
+        "javafx.fxml"
+    )
 }
 
 application {
