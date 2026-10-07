@@ -9,6 +9,8 @@ import javafx.stage.Window;
 import javafx.util.Callback;
 
 import java.io.IOException;
+import java.net.URL;
+import java.util.Optional;
 
 public class DialogService {
     private final Callback<Class<?>, Object> controllerFactory;
@@ -17,34 +19,51 @@ public class DialogService {
         this.controllerFactory = controllerFactory;
     }
 
+    public <R> Optional<R> showModal(ViewType viewType, Window owner) {
+        // Перегрузка модалки без передаваемых данных
+        return showModal(viewType, owner, null);
+    }
+
     @SuppressWarnings("unchecked")
-    public <T> void showModal(ViewType viewType, Window owner, T payload) {
+    public <T, R> Optional<R> showModal(ViewType viewType, Window owner, T payload) {
         // Перегрузка модалки с предварительной передачей данных
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource(viewType.getFxmlPath()));
-            loader.setControllerFactory(controllerFactory);
+            URL location = getClass().getResource(viewType.getFxmlPath());
+            if (location == null) {
+                throw new IllegalStateException("Указанный FXML-файл не найден: " + viewType.getFxmlPath());
+            }
 
+            FXMLLoader loader = new FXMLLoader(location);
+            loader.setControllerFactory(controllerFactory);
             Parent root = loader.load();
 
             var controller = loader.getController();
-            if (payload != null && controller instanceof DataReceiver) {
-                ((DataReceiver<T>) controller).receiveData(payload);
+            if (controller instanceof DataReceiver<?> receiver) {
+                if (payload == null) {
+                    throw new IllegalStateException("Окно " + viewType.getTitle()
+                            + " требует входные данные, однако в payload ничего не передано.");
+                }
+                ((DataReceiver<T>) receiver).receiveData(payload);
+            }
+
+            Scene scene = new Scene(root);
+            if (owner != null && owner.getScene() != null) {
+                scene.getStylesheets().addAll(owner.getScene().getStylesheets());
             }
 
             Stage stage = new Stage();
             stage.setTitle(viewType.getTitle());
             stage.initModality(Modality.WINDOW_MODAL);
             stage.initOwner(owner);
-            stage.setScene(new Scene(root));
-
+            stage.setScene(scene);
             stage.showAndWait();
-        } catch (IOException e) {
-            throw new RuntimeException("Не удалось загрузить окно:" + viewType, e);
-        }
-    }
 
-    public void showModal(ViewType viewType, Window owner) {
-        // Перегрузка модалки без передаваемых данных
-        showModal(viewType, owner, null);
+            if (controller instanceof ResultCarrier<?> carrier) {
+                return Optional.ofNullable(((ResultCarrier<R>) carrier).getResult());
+            }
+            return Optional.empty();
+        } catch (IOException e) {
+            throw new RuntimeException("Не удалось загрузить окно: " + viewType, e);
+        }
     }
 }
