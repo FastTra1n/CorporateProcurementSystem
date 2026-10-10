@@ -5,8 +5,9 @@ public enum ViewType {
     CREATE_PRODUCT("/views/ProductEditor.fxml", "Новый товар"),
     EDIT_ORDER("/views/ProductEditor.fxml", "Редактирование товара"),
     CREATE_CATEGORY("/views/CategoryEditor.fxml", "Новая категория"),
-    EDIT_CATEGORY("/views/CategoryEditor.fxml", "Редактирование категории");
-
+    EDIT_CATEGORY("/views/CategoryEditor.fxml", "Редактирование категории"),
+    CREATE_USER("/views/UserEditor.fxml", "Новый пользователь"),
+    EDIT_USER("/views/UserEditor.fxml", "Редактирование пользователя");
 
     private final String fxmlPath;
     private final String title;
