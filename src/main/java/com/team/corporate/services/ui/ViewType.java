@@ -1,7 +1,9 @@
 package com.team.corporate.services.ui;
 
 public enum ViewType {
-    CREATE_ORDER("/views/CreateOrder.fxml", "Оформление нового заказа");
+    CREATE_ORDER("/views/CreateOrder.fxml", "Оформление нового заказа"),
+    CREATE_PRODUCT("/views/ProductEditor.fxml", "Новый товар"),
+    EDIT_ORDER("/views/ProductEditor.fxml", "Редактирование товара");
 
     private final String fxmlPath;
     private final String title;
