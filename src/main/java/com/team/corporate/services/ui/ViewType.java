@@ -9,7 +9,8 @@ public enum ViewType {
     CREATE_USER("/views/UserEditor.fxml", "Новый пользователь"),
     EDIT_USER("/views/UserEditor.fxml", "Редактирование пользователя"),
     CREATE_WAREHOUSE("/views/WarehouseEditor.fxml", "Новый склад"),
-    EDIT_WAREHOUSE("/views/WarehouseEditor.fxml", "Редактирование склада");
+    EDIT_WAREHOUSE("/views/WarehouseEditor.fxml", "Редактирование склада"),
+    SET_STOCK("/views/StockEditor.fxml", "Установка остатка на складе");
 
     private final String fxmlPath;
     private final String title;
