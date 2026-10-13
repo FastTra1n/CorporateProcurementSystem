@@ -1,4 +1,4 @@
-package com.team.corporate.controllers;
+package com.team.corporate.controllers.modals;
 
 import com.sun.javafx.scene.control.IntegerField;
 import com.team.corporate.entities.Inventory;

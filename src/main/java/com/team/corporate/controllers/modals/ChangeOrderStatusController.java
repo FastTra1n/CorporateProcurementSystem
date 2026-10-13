@@ -1,4 +1,4 @@
-package com.team.corporate.controllers;
+package com.team.corporate.controllers.modals;
 
 import com.team.corporate.controllers.requests.OrderStatusChangeRequest;
 import com.team.corporate.entities.Order;

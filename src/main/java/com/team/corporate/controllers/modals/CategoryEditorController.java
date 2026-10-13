@@ -1,8 +1,8 @@
-package com.team.corporate.controllers;
+package com.team.corporate.controllers.modals;
 
-import com.team.corporate.controllers.requests.WarehouseEditorRequest;
-import com.team.corporate.entities.Warehouse;
-import com.team.corporate.services.WarehousesService;
+import com.team.corporate.controllers.requests.CategoryEditorRequest;
+import com.team.corporate.entities.Category;
+import com.team.corporate.services.CategoriesService;
 import com.team.corporate.services.ui.DataReceiver;
 import com.team.corporate.services.ui.ResultCarrier;
 import com.team.corporate.utils.EntityValidation;
@@ -14,32 +14,31 @@ import javafx.stage.Window;
 
 import java.util.UUID;
 
-public class WarehouseEditorController implements DataReceiver<WarehouseEditorRequest>, ResultCarrier<UUID> {
+public class CategoryEditorController implements DataReceiver<CategoryEditorRequest>, ResultCarrier<UUID> {
     @FXML private TextField nameField;
-    @FXML private TextField addressField;
     @FXML private Button saveButton;
     @FXML private Button cancelButton;
 
-    private final WarehousesService warehousesService;
+    private final CategoriesService categoriesService;
 
-    private WarehouseEditorRequest request;
-    private UUID savedWarehouseId;
+    private CategoryEditorRequest request;
+    private UUID savedCategoryId;
 
-    public WarehouseEditorController(WarehousesService warehousesService) {
-        this.warehousesService = warehousesService;
+    public CategoryEditorController(CategoriesService categoriesService) {
+        this.categoriesService = categoriesService;
     }
 
     @Override
-    public void receiveData(WarehouseEditorRequest request) {
+    public void receiveData(CategoryEditorRequest request) {
         this.request = request;
         if (request.isEditing()) {
-            prefillForEdit(request.warehouseId());
+            prefillForEdit(request.categoryId());
         }
     }
 
     @Override
     public UUID getResult() {
-        return savedWarehouseId;
+        return savedCategoryId;
     }
 
     @FXML
@@ -62,16 +61,15 @@ public class WarehouseEditorController implements DataReceiver<WarehouseEditorRe
         }
 
         String name = nameField.getText().strip();
-        String address = addressField.getText().isBlank() ? null : addressField.getText().strip();
 
         try {
-            Warehouse saved = request.isEditing()
-                    ? warehousesService.saveWarehouse(request.warehouseId(), name, address)
-                    : warehousesService.createWarehouse(name, address);
-            savedWarehouseId = saved.getId();
+            Category saved = request.isEditing()
+                    ? categoriesService.updateCategory(request.categoryId(), name)
+                    : categoriesService.createCategory(name);
+            savedCategoryId = saved.getId();
             close();
         } catch (RuntimeException e) {
-            showAlert(e.getMessage() == null ? "Не удалось сохранить склад." : e.getMessage());
+            showAlert(e.getMessage() == null ? "Не удалось сохранить категорию." : e.getMessage());
         }
     }
 
@@ -80,11 +78,10 @@ public class WarehouseEditorController implements DataReceiver<WarehouseEditorRe
         close();
     }
 
-    private void prefillForEdit(UUID warehouseId) {
-        Warehouse warehouse = warehousesService.getWarehouse(warehouseId)
-                .orElseThrow(() -> new IllegalStateException("Редактируемый склад не найден. Возможно, он был удален."));
-        nameField.setText(warehouse.getName());
-        addressField.setText(warehouse.getLocation());
+    private void prefillForEdit(UUID categoryId) {
+        Category category = categoriesService.getCategory(categoryId)
+                .orElseThrow(() -> new IllegalStateException("Редактируемая категория не найдена. Возможно, она была удалена."));
+        nameField.setText(category.getName());
     }
 
     private boolean isFormInvalid() {
@@ -101,13 +98,11 @@ public class WarehouseEditorController implements DataReceiver<WarehouseEditorRe
     private void setupInputs() {
         nameField.setTextFormatter(new TextFormatter<>(change ->
                 change.getControlNewText().length() <= EntityValidation.TEXT_MAX_LENGTH ? change : null));
-        addressField.setTextFormatter(new TextFormatter<>(change ->
-                change.getControlNewText().length() <= EntityValidation.TEXT_MAX_LENGTH ? change : null));
     }
 
     private void showAlert(String message) {
         Alert alert = new Alert(Alert.AlertType.WARNING, message, ButtonType.OK);
-        alert.setTitle("Склад");
+        alert.setTitle("Категория");
         alert.setHeaderText(null);
         alert.initOwner(saveButton.getScene().getWindow());
         alert.showAndWait();

@@ -1,4 +1,4 @@
-package com.team.corporate.controllers;
+package com.team.corporate.controllers.modals;
 
 import com.team.corporate.controllers.requests.ProductEditorRequest;
 import com.team.corporate.entities.Category;
