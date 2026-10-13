@@ -1,6 +1,7 @@
 package com.team.corporate.controllers.modals;
 
 import com.team.corporate.controllers.requests.OrderStatusChangeRequest;
+import com.team.corporate.controllers.utils.OrderStatusDisplay;
 import com.team.corporate.entities.Order;
 import com.team.corporate.entities.OrderStatus;
 import com.team.corporate.services.OrdersService;
@@ -40,7 +41,8 @@ public class ChangeOrderStatusController implements DataReceiver<OrderStatusChan
         currentStatus = order.getStatus();
 
         orderIdLabel.setText("Заказ № " + order.getId());
-        currentStatusLabel.setText(statusName(currentStatus));
+        currentStatusLabel.setText(OrderStatusDisplay.name(currentStatus));
+        currentStatusLabel.getStyleClass().add(OrderStatusDisplay.badgeStyle(currentStatus));
     }
 
     @Override
@@ -83,15 +85,6 @@ public class ChangeOrderStatusController implements DataReceiver<OrderStatusChan
         close();
     }
 
-    private static String statusName(OrderStatus status) {
-        return switch (status) {
-            case CREATED -> "Создан";
-            case APPROVED -> "Одобрен";
-            case DELIVERED -> "Доставлен";
-            case CANCELLED -> "Отменён";
-        };
-    }
-
     private boolean isFormInvalid() {
         OrderStatus selected = newStatusComboBox.getValue();
         return selected == null || selected == currentStatus;
@@ -109,7 +102,7 @@ public class ChangeOrderStatusController implements DataReceiver<OrderStatusChan
         newStatusComboBox.setConverter(new StringConverter<>() {
             @Override
             public String toString(OrderStatus status) {
-                return status == null ? "" : statusName(status);
+                return status == null ? "" : OrderStatusDisplay.name(status);
             }
 
             @Override

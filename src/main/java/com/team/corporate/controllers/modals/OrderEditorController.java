@@ -2,6 +2,7 @@ package com.team.corporate.controllers.modals;
 
 import com.sun.javafx.scene.control.IntegerField;
 import com.team.corporate.controllers.requests.OrderEditorRequest;
+import com.team.corporate.controllers.utils.MoneyFormat;
 import com.team.corporate.entities.*;
 import com.team.corporate.services.OrderItemsService;
 import com.team.corporate.services.OrdersService;
@@ -48,7 +49,6 @@ public class OrderEditorController implements DataReceiver<OrderEditorRequest>, 
     private final ObservableList<CartItem> orderItems = FXCollections.observableArrayList();
 
     private static final int MAX_LINE_QUANTITY = 100_000;
-    private static final DecimalFormat MONEY = buildMoneyFormat();
 
     private final BooleanProperty locked = new SimpleBooleanProperty(false);
 
@@ -74,7 +74,7 @@ public class OrderEditorController implements DataReceiver<OrderEditorRequest>, 
         quantityField.editableProperty().bind(locked.not());
         notesArea.editableProperty().bind(locked.not());
         totalLabel.textProperty().bind(Bindings.createStringBinding(
-                () -> "Итого: " + formatMoney(orderTotal()) + " ₽", orderItems));
+                () -> "Итого: " + MoneyFormat.format(orderTotal()) + " ₽", orderItems));
     }
 
     @Override
@@ -129,7 +129,7 @@ public class OrderEditorController implements DataReceiver<OrderEditorRequest>, 
             @Override
             protected void updateItem(BigDecimal value, boolean empty) {
                 super.updateItem(value, empty);
-                setText(empty || value == null ? null : formatMoney(value) + " ₽");
+                setText(empty || value == null ? null : MoneyFormat.format(value) + " ₽");
                 setAlignment(Pos.CENTER_RIGHT);
             }
         });
@@ -265,10 +265,6 @@ public class OrderEditorController implements DataReceiver<OrderEditorRequest>, 
         alert.setHeaderText(null);
         alert.initOwner(saveButton.getScene().getWindow());
         alert.showAndWait();
-    }
-
-    private static String formatMoney(BigDecimal amount) {
-        return MONEY.format(amount);
     }
 
     private static DecimalFormat buildMoneyFormat() {
