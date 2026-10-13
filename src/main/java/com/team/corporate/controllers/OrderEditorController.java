@@ -138,7 +138,7 @@ public class OrderEditorController implements DataReceiver<OrderEditorRequest>, 
         removeColumn.setCellFactory(column -> new TableCell<>() {
             private final Button deleteButton = new Button("✕");
             {
-                deleteButton.getStyleClass().add("danger-button");
+                deleteButton.getStyleClass().add("btn-remove-icon");
                 deleteButton.disableProperty().bind(locked);
                 deleteButton.setOnAction(event -> {
                     var row = getTableRow();
