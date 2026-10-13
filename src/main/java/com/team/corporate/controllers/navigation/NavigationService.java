@@ -2,7 +2,7 @@ package com.team.corporate.controllers.navigation;
 
 import com.team.corporate.controllers.pages.HeaderController;
 import com.team.corporate.controllers.session.UserSession;
-import com.team.corporate.services.ui.DataReceiver;
+import com.team.corporate.controllers.dialog.DataReceiver;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;

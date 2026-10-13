@@ -2,9 +2,9 @@ package com.team.corporate.controllers.pages;
 
 import com.team.corporate.entities.*;
 import com.team.corporate.services.InventoriesService;
-import com.team.corporate.services.ui.DataReceiver;
-import com.team.corporate.services.ui.DialogService;
-import com.team.corporate.services.ui.ViewType;
+import com.team.corporate.controllers.dialog.DataReceiver;
+import com.team.corporate.controllers.dialog.DialogService;
+import com.team.corporate.controllers.dialog.ViewType;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;

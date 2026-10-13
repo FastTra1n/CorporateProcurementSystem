@@ -1,4 +1,4 @@
-package com.team.corporate.services.ui;
+package com.team.corporate.controllers.dialog;
 
 @FunctionalInterface
 public interface DataReceiver<T> {

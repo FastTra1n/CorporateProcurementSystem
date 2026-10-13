@@ -1,4 +1,4 @@
-package com.team.corporate.services.ui;
+package com.team.corporate.controllers.dialog;
 
 public enum ViewType {
     CREATE_ORDER("/views/OrderEditor.fxml", "Новый заказ"),

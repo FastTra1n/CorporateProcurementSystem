@@ -7,7 +7,7 @@ import com.team.corporate.entities.Warehouse;
 import com.team.corporate.services.InventoriesService;
 import com.team.corporate.services.ProductsService;
 import com.team.corporate.services.WarehousesService;
-import com.team.corporate.services.ui.ResultCarrier;
+import com.team.corporate.controllers.dialog.ResultCarrier;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
