@@ -1,17 +1,15 @@
 package com.team.corporate.controllers;
 
 import com.sun.javafx.scene.control.IntegerField;
-import com.team.corporate.entities.Inventory;
-import com.team.corporate.entities.Product;
-import com.team.corporate.entities.User;
+import com.team.corporate.controllers.requests.OrderEditorRequest;
+import com.team.corporate.entities.*;
+import com.team.corporate.services.OrderItemsService;
 import com.team.corporate.services.OrdersService;
 import com.team.corporate.services.ProductsService;
 import com.team.corporate.services.ui.DataReceiver;
 import com.team.corporate.services.ui.ResultCarrier;
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.ReadOnlyIntegerWrapper;
-import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -28,7 +26,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public class CreateOrderController implements DataReceiver<UUID>, ResultCarrier<UUID> {
+public class OrderEditorController implements DataReceiver<OrderEditorRequest>, ResultCarrier<UUID> {
+    @FXML private Label warningLabel;
     @FXML private ComboBox<Product> productComboBox;
     @FXML private IntegerField quantityField;
     @FXML private Button addButton;
@@ -39,23 +38,27 @@ public class CreateOrderController implements DataReceiver<UUID>, ResultCarrier<
     @FXML private TableColumn<CartItem, Void> removeColumn;
     @FXML private Label totalLabel;
     @FXML private TextArea notesArea;
-    @FXML private Button createButton;
+    @FXML private Button saveButton;
     @FXML private Button cancelButton;
 
     private final OrdersService ordersService;
     private final ProductsService productsService;
+    private final OrderItemsService orderItemsService;
 
     private final ObservableList<CartItem> orderItems = FXCollections.observableArrayList();
 
     private static final int MAX_LINE_QUANTITY = 100_000;
     private static final DecimalFormat MONEY = buildMoneyFormat();
 
-    private UUID currentUserId;
-    private UUID createdOrderId;
+    private final BooleanProperty locked = new SimpleBooleanProperty(false);
 
-    public CreateOrderController(OrdersService ordersService, ProductsService productsService) {
+    private OrderEditorRequest request;
+    private UUID savedOrderId;
+
+    public OrderEditorController(OrdersService ordersService, ProductsService productsService, OrderItemsService orderItemsService) {
         this.ordersService = ordersService;
         this.productsService = productsService;
+        this.orderItemsService = orderItemsService;
     }
 
     @FXML
@@ -63,20 +66,35 @@ public class CreateOrderController implements DataReceiver<UUID>, ResultCarrier<
         setupInputs();
         configureTable();
 
-        addButton.disableProperty().bind(productComboBox.valueProperty().isNull());
-        createButton.disableProperty().bind(Bindings.isEmpty(orderItems));
+        addButton.disableProperty().bind(productComboBox.valueProperty().isNull().or(locked));
+        saveButton.disableProperty().bind(Bindings.isEmpty(orderItems).or(locked));
+        warningLabel.visibleProperty().bind(locked);
+
+        productComboBox.disableProperty().bind(locked);
+        quantityField.editableProperty().bind(locked.not());
+        notesArea.editableProperty().bind(locked.not());
         totalLabel.textProperty().bind(Bindings.createStringBinding(
                 () -> "Итого: " + formatMoney(orderTotal()) + " ₽", orderItems));
     }
 
     @Override
-    public void receiveData(UUID currentUserId) {
-        this.currentUserId = currentUserId;
+    public void receiveData(OrderEditorRequest request) {
+        this.request = request;
+        saveButton.setText(request.isEditing() ? "Сохранить" : "Создать заказ");
+        if (!request.isEditing()) {
+            return;
+        }
+        Order order = ordersService.getOrder(request.orderId())
+                .orElseThrow(() -> new IllegalStateException("Редактируемый заказ не найден. Возможно, он был удалён."));
+        if (order.getStatus() != OrderStatus.CREATED) {
+            locked.set(true);
+        }
+        prefillForEdit(order);
     }
 
     @Override
     public UUID getResult() {
-        return createdOrderId;
+        return savedOrderId;
     }
 
     private void setupInputs() {
@@ -120,8 +138,8 @@ public class CreateOrderController implements DataReceiver<UUID>, ResultCarrier<
         removeColumn.setCellFactory(column -> new TableCell<>() {
             private final Button deleteButton = new Button("✕");
             {
-                // TODO: Вынести в отдельный .css файл для разделения ответственности.
-                deleteButton.setStyle("-fx-background-color: #d9534f; -fx-text-fill: white;");
+                deleteButton.getStyleClass().add("danger-button");
+                deleteButton.disableProperty().bind(locked);
                 deleteButton.setOnAction(event -> {
                     var row = getTableRow();
                     if (row != null && row.getItem() != null) {
@@ -186,7 +204,11 @@ public class CreateOrderController implements DataReceiver<UUID>, ResultCarrier<
     }
 
     @FXML
-    private void onCreateClick() {
+    private void onSaveClick() {
+        if (request == null) {
+            throw new IllegalStateException("Режим окна не инициализирован (payload не передан).");
+        }
+
         if (orderItems.isEmpty()) {
             showAlert("В заказ необходимо добавить хотя бы один товар.");
             return;
@@ -198,10 +220,24 @@ public class CreateOrderController implements DataReceiver<UUID>, ResultCarrier<
         }
 
         try {
-            createdOrderId = ordersService.createOrder(currentUserId, orderLines, readNotes());
+            if (request.isEditing()) {
+                ordersService.saveOrder(request.userId(), request.orderId(), orderLines, readNotes());
+                savedOrderId = request.orderId();
+            } else {
+                savedOrderId = ordersService.createOrder(request.userId(), orderLines, readNotes());
+            }
             close();
         } catch (RuntimeException e) {
-            showAlert(e.getMessage() == null ? "Не удалось создать заказ." : e.getMessage());
+            showAlert(e.getMessage() == null ? "Не удалось сохранить заказ." : e.getMessage());
+        }
+    }
+
+    private void prefillForEdit(Order order) {
+        if (order.getNotes() != null) {
+            notesArea.setText(order.getNotes());
+        }
+        for (OrderItem item : orderItemsService.getAllByOrder(order.getId())) {
+            orderItems.add(new CartItem(item.getProduct(), item.getQuantity()));
         }
     }
 
@@ -217,7 +253,7 @@ public class CreateOrderController implements DataReceiver<UUID>, ResultCarrier<
     }
 
     private void close() {
-        Window window = createButton.getScene().getWindow();
+        Window window = saveButton.getScene().getWindow();
         if (window instanceof Stage stage) {
             stage.close();
         }
@@ -225,9 +261,9 @@ public class CreateOrderController implements DataReceiver<UUID>, ResultCarrier<
 
     private void showAlert(String message) {
         Alert alert = new Alert(Alert.AlertType.WARNING, message, javafx.scene.control.ButtonType.OK);
-        alert.setTitle("Новый заказ");
+        alert.setTitle("Заказ");
         alert.setHeaderText(null);
-        alert.initOwner(createButton.getScene().getWindow());
+        alert.initOwner(saveButton.getScene().getWindow());
         alert.showAndWait();
     }
 

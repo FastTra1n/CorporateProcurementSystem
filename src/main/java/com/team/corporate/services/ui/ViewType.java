@@ -1,9 +1,10 @@
 package com.team.corporate.services.ui;
 
 public enum ViewType {
-    CREATE_ORDER("/views/CreateOrder.fxml", "Оформление нового заказа"),
+    CREATE_ORDER("/views/OrderEditor.fxml", "Новый заказ"),
+    EDIT_ORDER("/views/OrderEditor.fxml", "Редактирование заказа"),
     CREATE_PRODUCT("/views/ProductEditor.fxml", "Новый товар"),
-    EDIT_ORDER("/views/ProductEditor.fxml", "Редактирование товара"),
+    EDIT_PRODUCT("/views/ProductEditor.fxml", "Редактирование товара"),
     CREATE_CATEGORY("/views/CategoryEditor.fxml", "Новая категория"),
     EDIT_CATEGORY("/views/CategoryEditor.fxml", "Редактирование категории"),
     CREATE_USER("/views/UserEditor.fxml", "Новый пользователь"),
@@ -12,6 +13,7 @@ public enum ViewType {
     EDIT_WAREHOUSE("/views/WarehouseEditor.fxml", "Редактирование склада"),
     SET_STOCK("/views/StockEditor.fxml", "Установка остатка на складе"),
     CHANGE_ORDER_STATUS("/views/ChangeOrderStatus.fxml", "Изменение статуса");
+
     private final String fxmlPath;
     private final String title;
 
