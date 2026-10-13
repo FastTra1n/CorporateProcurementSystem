@@ -2,22 +2,16 @@ package com.team.corporate.controllers;
 
 import com.team.corporate.controllers.requests.CategoryEditorRequest;
 import com.team.corporate.entities.Category;
-import com.team.corporate.entities.Product;
 import com.team.corporate.services.CategoriesService;
 import com.team.corporate.services.ui.DataReceiver;
 import com.team.corporate.services.ui.ResultCarrier;
 import com.team.corporate.utils.EntityValidation;
 import javafx.beans.binding.Bindings;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import javafx.util.StringConverter;
 
-import java.math.BigDecimal;
-import java.util.Comparator;
 import java.util.UUID;
 
 public class CategoryEditorController implements DataReceiver<CategoryEditorRequest>, ResultCarrier<UUID> {
