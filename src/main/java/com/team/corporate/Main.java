@@ -71,7 +71,7 @@ public class Main {
             var warehouses = new WarehousesServiceImpl(warehousesRepository);
             var statistics = new StatisticsServiceImpl(
                     usersRepository, productsRepository, categoriesRepository, warehousesRepository,
-                    ordersRepository, inventoriesRepository, transactions);
+                    ordersRepository, itemsRepository, inventoriesRepository, transactions);
             var csvExport = new CsvExportServiceImpl(
                     usersRepository,
                     categoriesRepository,
