@@ -146,7 +146,6 @@ public class MyOrdersController implements DataReceiver<UserSession> {
         });
 
         sortComboBox.setItems(FXCollections.observableArrayList(SortMode.values()));
-        sortComboBox.setValue(SortMode.NEWEST_FIRST);
         sortComboBox.setConverter(new StringConverter<>() {
             @Override public String toString(SortMode mode) { return mode == null ? "" : mode.label(); }
             @Override public SortMode fromString(String string) { return null; }
@@ -164,6 +163,7 @@ public class MyOrdersController implements DataReceiver<UserSession> {
         ordersTable.setItems(sorted);
 
         sortComboBox.valueProperty().addListener((obs, old, mode) -> applySortMode(mode));
+        sortComboBox.setValue(SortMode.NEWEST_FIRST);
     }
 
     private void applySortMode(SortMode mode) {

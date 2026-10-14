@@ -109,6 +109,7 @@ public class ProductEditorController implements DataReceiver<ProductEditorReques
     private void setupInputs() {
         skuField.setTextFormatter(new TextFormatter<>(skuFilter()));
         priceField.setTextFormatter(priceFormatter);
+        priceField.textProperty().addListener((obs, old, text) -> priceField.commitValue());
         ObservableList<Category> categories =
                 FXCollections.observableArrayList(categoriesService.getAll());
         categories.sort(Comparator.comparing(Category::getName));
