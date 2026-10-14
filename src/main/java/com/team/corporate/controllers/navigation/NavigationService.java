@@ -34,7 +34,7 @@ public class NavigationService {
     public void start(UserSession session) {
         this.session = session;
         primaryStage.setScene(buildMainScene());
-        navigate(Page.MY_ORDERS);
+        navigate(Page.HUB);
     }
 
     private Scene buildMainScene() {

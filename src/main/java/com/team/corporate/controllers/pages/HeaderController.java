@@ -32,7 +32,7 @@ public class HeaderController {
 
     public void setActivePage(Page page) {
         tabs.forEach((p, button) -> button.getStyleClass().remove("active"));
-        Button active = tabs.get(page);
+        Button active = tabs.get(page.tabPage());
         if (active != null) {
             active.getStyleClass().add("active");
         }
