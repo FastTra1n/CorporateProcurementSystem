@@ -31,10 +31,10 @@ public class HeaderController {
     }
 
     public void setActivePage(Page page) {
-        tabs.forEach((p, button) -> button.getStyleClass().remove("active-tab"));
+        tabs.forEach((p, button) -> button.getStyleClass().remove("active"));
         Button active = tabs.get(page);
         if (active != null) {
-            active.getStyleClass().add("active-tab");
+            active.getStyleClass().add("active");
         }
     }
 }
