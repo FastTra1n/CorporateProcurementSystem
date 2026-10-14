@@ -1,5 +1,6 @@
 package com.team.corporate;
 
+import com.team.corporate.config.ApplicationServices;
 import com.team.corporate.config.FileConfigurationProvider;
 import com.team.corporate.config.ConfigurationProvider;
 import com.team.corporate.console.ConsoleApplication;
@@ -17,10 +18,11 @@ public class Main {
     private static final Logger LOG = LoggerFactory.getLogger(Main.class);
 
     static void main() {
-        int result = run(new FileConfigurationProvider());
-        if (result != 0) {
-            System.exit(result);
-        }
+        UiApplication.launch(UiApplication.class);
+//        int result = run(new FileConfigurationProvider());
+//        if (result != 0) {
+//            System.exit(result);
+//        }
     }
 
     static int run(ConfigurationProvider configurationProvider) {
@@ -35,68 +37,20 @@ public class Main {
     }
 
     private static void start(ConfigurationProvider configurationProvider) throws Exception {
-        var config = configurationProvider.getConfiguration();
-        try (var factory = HibernateFactory.createSessionFactory(config);
+        try (var services = ApplicationServices.open(configurationProvider.getConfiguration());
              var terminal = ConsoleTerminal.open()) {
             var reader = LineReaderBuilder.builder().terminal(terminal).build();
-            var transactions = new HibernateTransactions(factory);
-            var usersRepository = new HibernateUsersRepository(factory);
-            var productsRepository = new HibernateProductsRepository(factory);
-            var categoriesRepository = new HibernateCategoriesRepository(factory);
-            var ordersRepository = new HibernateOrdersRepository(factory);
-            var itemsRepository = new HibernateOrderItemsRepository(factory);
-            var inventoriesRepository = new HibernateInventoriesRepository(factory);
-            var warehousesRepository = new HibernateWarehousesRepository(factory);
-            var auditLogsRepository = new HibernateAuditLogsRepository(factory);
-
-            var users = new UsersServiceImpl(usersRepository);
-            var products = new ProductsServiceImpl(
-                    productsRepository,
-                    categoriesRepository,
-                    itemsRepository,
-                    inventoriesRepository,
-                    transactions
-            );
-            var categories = new CategoriesServiceImpl(categoriesRepository, productsRepository, transactions);
-            var orders = new OrdersServiceImpl(
-                    ordersRepository,
-                    usersRepository,
-                    productsRepository,
-                    itemsRepository,
-                    auditLogsRepository,
-                    transactions
-            );
-            var items = new OrderItemsServiceImpl(ordersRepository, productsRepository, itemsRepository);
-            var inventories = new InventoriesServiceImpl(productsRepository, warehousesRepository, inventoriesRepository);
-            var warehouses = new WarehousesServiceImpl(warehousesRepository);
-            var statistics = new StatisticsServiceImpl(
-                    usersRepository, productsRepository, categoriesRepository, warehousesRepository,
-                    ordersRepository, itemsRepository, inventoriesRepository, transactions);
-            var csvExport = new CsvExportServiceImpl(
-                    usersRepository,
-                    categoriesRepository,
-                    productsRepository,
-                    warehousesRepository,
-                    inventoriesRepository,
-                    ordersRepository,
-                    itemsRepository,
-                    auditLogsRepository,
-                    transactions
-            );
-
-            transactions.execute(() -> new DataInitializer(users, categories, products, orders).run());
-
             new ConsoleApplication(
                     new ConsoleInput(reader),
-                    users,
-                    products,
-                    categories,
-                    orders,
-                    items,
-                    inventories,
-                    warehouses,
-                    csvExport,
-                    statistics
+                    services.users(),
+                    services.products(),
+                    services.categories(),
+                    services.orders(),
+                    services.items(),
+                    services.inventories(),
+                    services.warehouses(),
+                    services.csvExport(),
+                    services.statistics()
             ).run();
         }
     }
