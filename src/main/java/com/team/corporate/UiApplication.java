@@ -7,10 +7,14 @@ import com.team.corporate.controllers.modals.*;
 import com.team.corporate.controllers.navigation.NavigationService;
 import com.team.corporate.controllers.pages.*;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javafx.stage.Stage;
+import org.jline.utils.Log;
 
 import java.io.IOException;
 import java.net.URL;
@@ -23,6 +27,18 @@ public class UiApplication extends Application {
 
     @Override
     public void init() throws Exception {
+        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
+            Log.error("Необработанная ошибка в потоке " + thread.getName(), error);
+            if (Platform.isFxApplicationThread()) {
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.ERROR,
+                            "Произошла непредвиденная ошибка. Подробности — в журнале.", ButtonType.OK);
+                    alert.setHeaderText(null);
+                    alert.showAndWait();
+                });
+            }
+        });
+        
         app = ApplicationServices.open(new FileConfigurationProvider().getConfiguration());
     }
 
@@ -56,9 +72,9 @@ public class UiApplication extends Application {
     }
 
     private Object createController(Class<?> clazz) {
-//        if (clazz == LoginController.class) {
-//            return new LoginController(app.users(), navigationService::start);
-//        }
+        if (clazz == LoginController.class) {
+            return new LoginController(app.users(), navigationService::start);
+        }
         if (clazz == HeaderController.class) {
             return new HeaderController();
         }
