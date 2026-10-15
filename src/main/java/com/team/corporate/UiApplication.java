@@ -38,7 +38,6 @@ public class UiApplication extends Application {
                 });
             }
         });
-        
         app = ApplicationServices.open(new FileConfigurationProvider().getConfiguration());
     }
 
