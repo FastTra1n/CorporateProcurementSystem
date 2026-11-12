@@ -7,4 +7,15 @@ plugins {
 
 dependencies {
     implementation(libs.spring.webmvc)
+    implementation(project(":cps-core"))
+    implementation(libs.jetbrains.annotations)
+
+    // Spring Data JPA integration and Flyway migrations.
+    implementation(libs.spring.data.jpa)
+    implementation(libs.flyway.core)
+    implementation(libs.flyway.database.postgres)
+    implementation(libs.spring.flyway)
+
+    // Database driver for PostgreSQL.
+    runtimeOnly(libs.postgresql)
 }
