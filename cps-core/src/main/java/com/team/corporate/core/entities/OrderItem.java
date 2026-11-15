@@ -2,6 +2,8 @@ package com.team.corporate.core.entities;
 
 import com.team.corporate.core.utils.EntityValidation;
 import jakarta.persistence.*;
+import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SoftDeleteType;
 import org.jetbrains.annotations.NotNull;
 
 import java.math.BigDecimal;
@@ -9,6 +11,10 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "order_items")
+@SoftDelete(
+        strategy = SoftDeleteType.TIMESTAMP,
+        columnName = "deleted_at"
+)
 public class OrderItem {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -28,6 +34,9 @@ public class OrderItem {
 
     @Column(name = "purchase_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal purchasePrice;
+
+    @Version
+    private Long version;
 
     public OrderItem() {
     }

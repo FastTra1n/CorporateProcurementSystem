@@ -2,14 +2,21 @@ package com.team.corporate.core.entities;
 
 import com.team.corporate.core.utils.EntityValidation;
 import jakarta.persistence.*;
+import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SoftDeleteType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
 @Table(name = "products")
+@SoftDelete(
+        strategy = SoftDeleteType.TIMESTAMP,
+        columnName = "deleted_at"
+)
 public class Product {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -28,6 +35,18 @@ public class Product {
 
     @Column(name = "price", nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "product_tags",
+            joinColumns = @JoinColumn(name = "product_id") ,
+            inverseJoinColumns = @JoinColumn(name = "tags_id")
+
+    )
+    private List<Tag> tags;
+
+    @Version
+    private Long version;
 
     public Product() {
     }

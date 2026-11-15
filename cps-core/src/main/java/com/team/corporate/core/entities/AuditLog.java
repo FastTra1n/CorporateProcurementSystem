@@ -3,6 +3,8 @@ package com.team.corporate.core.entities;
 import com.team.corporate.core.utils.EntityValidation;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SoftDeleteType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -11,6 +13,10 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "audit_logs")
+@SoftDelete(
+        strategy = SoftDeleteType.TIMESTAMP,
+        columnName = "deleted_at"
+)
 public class AuditLog {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -36,6 +42,9 @@ public class AuditLog {
     @CreationTimestamp
     @Column(name = "changed_at", nullable = false, updatable = false)
     private Instant changedAt;
+
+    @Version
+    private Long version;
 
     public AuditLog() {
     }
