@@ -2,9 +2,11 @@ package com.team.corporate.test.backend;
 
 import com.team.corporate.backend.BackendMain;
 import com.team.corporate.backend.config.TokenProperties;
+import com.team.corporate.backend.audit.AuditEventWriter;
 import com.team.corporate.backend.dto.CreateUserRequest;
 import com.team.corporate.backend.dto.UpdateUserRequest;
 import com.team.corporate.backend.entities.UserCredentials;
+import com.team.corporate.backend.entities.AuditEventType;
 import com.team.corporate.backend.repositories.*;
 import com.team.corporate.backend.security.BootstrapAdmin;
 import com.team.corporate.backend.security.PasswordChangePolicy;
@@ -91,6 +93,8 @@ class SecurityIntegrationTest {
     @Autowired private JwtEncoder jwtEncoder;
     @Autowired private TokenProperties tokenProperties;
     @Autowired private MutableClock clock;
+    @Autowired private AuditEventWriter audit;
+    @Autowired private AuditEventsRepository auditEvents;
 
     private User admin;
     private User manager;
@@ -111,6 +115,7 @@ class SecurityIntegrationTest {
         savePermanentCredentials(admin);
         savePermanentCredentials(manager);
         savePermanentCredentials(employee);
+        auditEvents.deleteAllInBatch();
     }
 
     private void savePermanentCredentials(User user) {
@@ -172,7 +177,9 @@ class SecurityIntegrationTest {
         MvcResult unknown = loginAttempt("missing", "wrong-password");
         assertProblem(wrong, 401);
         assertProblem(unknown, 401);
-        assertEquals(json(wrong), json(unknown));
+        for (String field : List.of("type", "title", "status", "detail", "instance")) {
+            assertEquals(json(wrong).get(field), json(unknown).get(field));
+        }
         assertEquals(0, sessions.count());
     }
 
@@ -573,10 +580,19 @@ class SecurityIntegrationTest {
         runBootstrap("first-admin", PASSWORD);
         User created = users.findByUsername("first-admin").orElseThrow();
         assertEquals(UserRole.ADMIN, created.getUserRole());
+        var provisioning = auditEvents.findAll().stream()
+                .filter(event -> event.getEventType() == AuditEventType.BOOTSTRAP_ADMIN_PROVISIONED).toList();
+        assertEquals(1, provisioning.size());
+        assertEquals(created.getId(), provisioning.getFirst().getEntityId());
+        assertNull(provisioning.getFirst().getActorId());
+        assertEquals("system", provisioning.getFirst().getActorUsername());
+        assertFalse(provisioning.getFirst().getDescription().contains(PASSWORD));
         String hash = credentials.findById(created.getId()).orElseThrow().getPasswordHash();
         assertTrue(encoder.matches(PASSWORD, hash));
         runBootstrap("first-admin", NEW_PASSWORD);
         assertEquals(hash, credentials.findById(created.getId()).orElseThrow().getPasswordHash());
+        assertEquals(1, auditEvents.findAll().stream()
+                .filter(event -> event.getEventType() == AuditEventType.BOOTSTRAP_ADMIN_PROVISIONED).count());
         created.setEnabled(false);
         users.save(created);
         runBootstrap("first-admin", PASSWORD);
@@ -591,7 +607,7 @@ class SecurityIntegrationTest {
     }
 
     private void runBootstrap(String username, String password) {
-        var bootstrap = new BootstrapAdmin(users, credentials, encoder, validator, username, password);
+        var bootstrap = new BootstrapAdmin(users, credentials, encoder, validator, username, password, audit);
         new TransactionTemplate(transactions).executeWithoutResult(status -> bootstrap.run(new DefaultApplicationArguments()));
     }
 

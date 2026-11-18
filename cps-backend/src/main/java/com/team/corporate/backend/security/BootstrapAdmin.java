@@ -1,6 +1,9 @@
 package com.team.corporate.backend.security;
 
 import com.team.corporate.backend.dto.ResetPasswordRequest;
+import com.team.corporate.backend.audit.AuditEventWriter;
+import com.team.corporate.backend.entities.AuditEntityType;
+import com.team.corporate.backend.entities.AuditEventType;
 import com.team.corporate.backend.entities.UserCredentials;
 import com.team.corporate.backend.repositories.SpringUsersRepository;
 import com.team.corporate.backend.repositories.UserCredentialsRepository;
@@ -28,6 +31,7 @@ public class BootstrapAdmin implements ApplicationRunner {
     private final Validator validator;
     private final String username;
     private final String password;
+    private final AuditEventWriter audit;
 
     public BootstrapAdmin(
             @NotNull SpringUsersRepository users,
@@ -35,7 +39,8 @@ public class BootstrapAdmin implements ApplicationRunner {
             @NotNull PasswordEncoder encoder,
             @NotNull Validator validator,
             @Value("${cps.security.bootstrap.username:}") String username,
-            @Value("${cps.security.bootstrap.password:}") String password
+            @Value("${cps.security.bootstrap.password:}") String password,
+            @NotNull AuditEventWriter audit
     ) {
         this.users = users;
         this.credentials = credentials;
@@ -43,6 +48,7 @@ public class BootstrapAdmin implements ApplicationRunner {
         this.validator = validator;
         this.username = username;
         this.password = password;
+        this.audit = audit;
     }
 
     @Override
@@ -69,5 +75,7 @@ public class BootstrapAdmin implements ApplicationRunner {
             user = users.save(new User(normalized, UserRole.ADMIN));
         }
         credentials.save(new UserCredentials(user, encoder.encode(password)));
+        audit.recordAs(AuditEventType.BOOTSTRAP_ADMIN_PROVISIONED, AuditEntityType.USER, user.getId(),
+                "Задан временный пароль первого администратора.", null, "system");
     }
 }

@@ -2,6 +2,7 @@ package com.team.corporate.backend.exceptions;
 
 import com.team.corporate.core.exceptions.*;
 import com.team.corporate.backend.security.PasswordChangePolicy;
+import com.team.corporate.backend.filter.CorrelationIdFilter;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ElementKind;
 import org.jetbrains.annotations.NotNull;
@@ -266,8 +267,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     ) {
         HttpHeaders responseHeaders = new HttpHeaders();
         responseHeaders.putAll(headers);
-        if (body instanceof ProblemDetail) {
+        if (body instanceof ProblemDetail problem) {
             responseHeaders.setContentType(MediaType.APPLICATION_PROBLEM_JSON);
+            if (request.getAttribute(CorrelationIdFilter.ATTRIBUTE, WebRequest.SCOPE_REQUEST) instanceof String id) {
+                problem.setProperty("correlationId", id);
+            }
         }
         return super.createResponseEntity(body, responseHeaders, status, request);
     }

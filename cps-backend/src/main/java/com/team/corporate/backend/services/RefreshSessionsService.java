@@ -1,6 +1,9 @@
 package com.team.corporate.backend.services;
 
 import com.team.corporate.backend.config.TokenProperties;
+import com.team.corporate.backend.audit.AuditEventWriter;
+import com.team.corporate.backend.entities.AuditEntityType;
+import com.team.corporate.backend.entities.AuditEventType;
 import com.team.corporate.backend.dto.TokenResponse;
 import com.team.corporate.backend.entities.RefreshSession;
 import com.team.corporate.backend.entities.RefreshToken;
@@ -37,10 +40,12 @@ public class RefreshSessionsService {
     private final TokenProperties properties;
     private final Clock clock;
     private final SecureRandom random;
+    private final AuditEventWriter audit;
 
     public RefreshSessionsService(RefreshSessionsRepository sessions, RefreshTokensRepository tokens,
                                   SpringUsersRepository users, UserCredentialsRepository credentials,
-                                  JwtEncoder encoder, TokenProperties properties, Clock clock, SecureRandom random) {
+                                  JwtEncoder encoder, TokenProperties properties, Clock clock, SecureRandom random,
+                                  AuditEventWriter audit) {
         this.sessions = sessions;
         this.tokens = tokens;
         this.users = users;
@@ -49,6 +54,7 @@ public class RefreshSessionsService {
         this.properties = properties;
         this.clock = clock;
         this.random = random;
+        this.audit = audit;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -72,6 +78,8 @@ public class RefreshSessionsService {
         }
         if (token.getUsedAt() != null) {
             session.revoke(now);
+            audit.recordAs(AuditEventType.SESSION_REVOKED, AuditEntityType.REFRESH_SESSION, session.getId(),
+                    "Повторное использование refresh-токена; сессия отозвана.", user.getId(), user.getUsername());
             throw new InvalidRefreshSessionException();
         }
         token.markUsed(now);
@@ -81,8 +89,16 @@ public class RefreshSessionsService {
     @Transactional
     public void logout(String rawToken) {
         var reference = tokens.findSession(hash(rawToken)).orElse(null);
-        if (reference == null || users.findByIdForUpdate(reference.getUserId()).isEmpty()) return;
-        sessions.findForUpdate(reference.getSessionId()).ifPresent(session -> session.revoke(clock.instant()));
+        if (reference == null) return;
+        User user = users.findByIdForUpdate(reference.getUserId()).orElse(null);
+        if (user == null) return;
+        sessions.findForUpdate(reference.getSessionId()).ifPresent(session -> {
+            if (session.getRevokedAt() == null) {
+                session.revoke(clock.instant());
+                audit.recordAs(AuditEventType.LOGOUT, AuditEntityType.REFRESH_SESSION, session.getId(),
+                        "Выход из системы.", user.getId(), user.getUsername());
+            }
+        });
     }
 
     @Transactional(propagation = Propagation.MANDATORY)

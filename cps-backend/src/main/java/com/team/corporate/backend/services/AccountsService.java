@@ -1,6 +1,9 @@
 package com.team.corporate.backend.services;
 
 import com.team.corporate.backend.dto.ChangePasswordRequest;
+import com.team.corporate.backend.audit.AuditEventWriter;
+import com.team.corporate.backend.entities.AuditEntityType;
+import com.team.corporate.backend.entities.AuditEventType;
 import com.team.corporate.backend.dto.CreateUserRequest;
 import com.team.corporate.backend.dto.PageResponse;
 import com.team.corporate.backend.dto.UpdateUserRequest;
@@ -33,17 +36,20 @@ public class AccountsService {
     private final UserCredentialsRepository credentials;
     private final PasswordEncoder encoder;
     private final RefreshSessionsService sessions;
+    private final AuditEventWriter audit;
 
     public AccountsService(
             @NotNull SpringUsersRepository users,
             @NotNull UserCredentialsRepository credentials,
             @NotNull PasswordEncoder encoder,
-            @NotNull RefreshSessionsService sessions
+            @NotNull RefreshSessionsService sessions,
+            @NotNull AuditEventWriter audit
     ) {
         this.users = users;
         this.credentials = credentials;
         this.encoder = encoder;
         this.sessions = sessions;
+        this.audit = audit;
     }
 
     @NotNull
@@ -140,6 +146,7 @@ public class AccountsService {
         account.setMustChangePassword(false);
         credentials.save(account);
         sessions.revokeAll(user.getId());
+        audit.record(AuditEventType.PASSWORD_CHANGED, AuditEntityType.USER, user.getId(), "Пароль изменён пользователем.");
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -153,6 +160,7 @@ public class AccountsService {
         account.setMustChangePassword(true);
         credentials.save(account);
         sessions.revokeAll(userId);
+        audit.record(AuditEventType.PASSWORD_RESET, AuditEntityType.USER, userId, "Администратор задал временный пароль.");
     }
 
     @NotNull
