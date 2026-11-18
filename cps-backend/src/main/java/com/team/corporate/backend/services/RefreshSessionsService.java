@@ -111,8 +111,11 @@ public class RefreshSessionsService {
                 .claim("roles", List.of(user.getUserRole().name())).build();
         var header = JwsHeader.with(MacAlgorithm.HS256).type("JWT").build();
         String accessToken = encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+        boolean mustChangePassword = credentials.findById(user.getId())
+                .orElseThrow(InvalidRefreshSessionException::new).isMustChangePassword();
         return new TokenResponse(accessToken, refreshToken, "Bearer",
-                Duration.between(now, expires).toSeconds(), Duration.between(now, session.getExpiresAt()).toSeconds());
+                Duration.between(now, expires).toSeconds(), Duration.between(now, session.getExpiresAt()).toSeconds(),
+                mustChangePassword);
     }
 
     private static String hash(String token) {

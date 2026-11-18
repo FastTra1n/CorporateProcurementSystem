@@ -6,12 +6,14 @@ import com.team.corporate.backend.dto.CreateUserRequest;
 import com.team.corporate.backend.entities.UserCredentials;
 import com.team.corporate.backend.repositories.*;
 import com.team.corporate.backend.security.BootstrapAdmin;
+import com.team.corporate.backend.security.PasswordChangePolicy;
 import com.team.corporate.backend.services.AccountsService;
 import com.team.corporate.backend.services.RefreshSessionsService;
 import com.team.corporate.core.entities.User;
 import com.team.corporate.core.entities.UserRole;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -39,6 +41,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -65,7 +70,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
         "cps.security.rate-limit.refresh-attempts=10"
 })
 @AutoConfigureMockMvc
-@Import(SecurityIntegrationTest.TestTime.class)
+@Import({SecurityIntegrationTest.TestTime.class, SecurityIntegrationTest.ProtectedEndpoints.class})
 class SecurityIntegrationTest {
     private static final String PASSWORD = "correct-password-123";
     private static final String NEW_PASSWORD = "new-password-456";
@@ -102,9 +107,15 @@ class SecurityIntegrationTest {
         manager = users.save(new User("manager", UserRole.MANAGER));
         employee = users.save(new User("employee", UserRole.USER));
         legacy = users.save(new User("legacy", UserRole.USER));
-        credentials.save(new UserCredentials(admin, encoder.encode(PASSWORD)));
-        credentials.save(new UserCredentials(manager, encoder.encode(PASSWORD)));
-        credentials.save(new UserCredentials(employee, encoder.encode(PASSWORD)));
+        savePermanentCredentials(admin);
+        savePermanentCredentials(manager);
+        savePermanentCredentials(employee);
+    }
+
+    private void savePermanentCredentials(User user) {
+        var account = new UserCredentials(user, encoder.encode(PASSWORD));
+        account.setMustChangePassword(false);
+        credentials.save(account);
     }
 
     @Test
@@ -118,6 +129,7 @@ class SecurityIntegrationTest {
         assertTrue(jwt.getAudience().contains(tokenProperties.audience()));
         assertEquals("access", jwt.getClaimAsString("token_use"));
         assertEquals("Bearer", json(result).get("tokenType").asString());
+        assertFalse(json(result).get("mustChangePassword").asBoolean());
         assertEquals(900, json(result).get("expiresIn").asLong());
         assertTrue(sessions.existsById(UUID.fromString(jwt.getClaimAsString("sid"))));
         assertEquals(1, refreshTokens.count());
@@ -131,6 +143,7 @@ class SecurityIntegrationTest {
         assertEquals(200, me.getResponse().getStatus());
         assertEquals(employee.getId().toString(), json(me).get("id").asString());
         assertEquals("USER", json(me).get("role").asString());
+        assertFalse(json(me).get("mustChangePassword").asBoolean());
         assertNoPassword(me);
     }
 
@@ -275,6 +288,7 @@ class SecurityIntegrationTest {
         assertEquals(201, result.getResponse().getStatus());
         assertEquals(role, json(result).get("role").asString());
         assertTrue(json(result).get("enabled").asBoolean());
+        assertTrue(json(result).get("mustChangePassword").asBoolean());
         assertFalse(json(result).get("createdAt").isNull());
         UUID id = UUID.fromString(json(result).get("id").asString());
         String hash = credentials.findById(id).orElseThrow().getPasswordHash();
@@ -576,6 +590,174 @@ class SecurityIntegrationTest {
         new TransactionTemplate(transactions).executeWithoutResult(status -> bootstrap.run(new DefaultApplicationArguments()));
     }
 
+    @Nested
+    class RequiredPasswordChange {
+        @ParameterizedTest
+        @ValueSource(strings = {"USER", "MANAGER", "ADMIN"})
+        void newAccountMustChangePasswordBeforeUsingItsRole(String role) throws Exception {
+            UUID id = createTemporaryAccount("temporary-user", role);
+            MvcResult login = loginAttempt("temporary-user", PASSWORD);
+            Tokens temporary = tokenResponse(login);
+            assertTrue(json(login).get("mustChangePassword").asBoolean());
+            assertTrue(credentials.findById(id).orElseThrow().isMustChangePassword());
+            assertTrue(json(me(temporary)).get("mustChangePassword").asBoolean());
+            assertPasswordChangeRequired(protectedRead(temporary));
+            assertPasswordChangeRequired(mvc.perform(post("/api/test/protected")
+                    .header(HttpHeaders.AUTHORIZATION, bearer(temporary))).andReturn());
+            assertPasswordChangeRequired(mvc.perform(get("/api/users")
+                    .header(HttpHeaders.AUTHORIZATION, bearer(temporary))).andReturn());
+
+            assertEquals(204, change(temporary, PASSWORD, NEW_PASSWORD).getResponse().getStatus());
+            UserCredentials account = credentials.findById(id).orElseThrow();
+            assertFalse(account.isMustChangePassword());
+            assertTrue(encoder.matches(NEW_PASSWORD, account.getPasswordHash()));
+            assertProblem(me(temporary), 401);
+            assertProblem(refresh(temporary), 401);
+
+            MvcResult renewedLogin = loginAttempt("temporary-user", NEW_PASSWORD);
+            Tokens permanent = tokenResponse(renewedLogin);
+            assertFalse(json(renewedLogin).get("mustChangePassword").asBoolean());
+            assertFalse(json(me(permanent)).get("mustChangePassword").asBoolean());
+            assertEquals(200, protectedRead(permanent).getResponse().getStatus());
+            assertEquals(role.equals("ADMIN") ? 200 : 403, mvc.perform(get("/api/users")
+                    .header(HttpHeaders.AUTHORIZATION, bearer(permanent))).andReturn().getResponse().getStatus());
+        }
+
+        @Test
+        void temporaryAccountCanRefreshAndLogoutWithoutUnlockingAccess() throws Exception {
+            createTemporaryAccount("temporary-user", "USER");
+            Tokens original = login("temporary-user", PASSWORD);
+            MvcResult refreshed = refresh(original);
+            Tokens rotated = tokenResponse(refreshed);
+            assertTrue(json(refreshed).get("mustChangePassword").asBoolean());
+            assertTrue(json(me(rotated)).get("mustChangePassword").asBoolean());
+            assertPasswordChangeRequired(protectedRead(rotated));
+            assertEquals(204, logout(rotated).getResponse().getStatus());
+            assertProblem(me(rotated), 401);
+            assertProblem(refresh(rotated), 401);
+        }
+
+        @Test
+        void administrativeResetRequiresAnotherPasswordChangeAndRevokesOldSessions() throws Exception {
+            Tokens original = login("employee", PASSWORD);
+            assertEquals(200, protectedRead(original).getResponse().getStatus());
+            Tokens administrator = login("admin", PASSWORD);
+            assertEquals(204, reset(administrator, employee.getId(), NEW_PASSWORD).getResponse().getStatus());
+            assertTrue(credentials.findById(employee.getId()).orElseThrow().isMustChangePassword());
+            assertProblem(me(original), 401);
+            assertProblem(refresh(original), 401);
+
+            MvcResult login = loginAttempt("employee", NEW_PASSWORD);
+            Tokens temporary = tokenResponse(login);
+            assertTrue(json(login).get("mustChangePassword").asBoolean());
+            assertPasswordChangeRequired(protectedRead(temporary));
+            String permanentPassword = "permanent-password-789";
+            assertEquals(204, change(temporary, NEW_PASSWORD, permanentPassword).getResponse().getStatus());
+            assertFalse(credentials.findById(employee.getId()).orElseThrow().isMustChangePassword());
+            assertEquals(200, protectedRead(login("employee", permanentPassword)).getResponse().getStatus());
+        }
+
+        @Test
+        void invalidChangesPreserveTemporaryPasswordAndSession() throws Exception {
+            UUID id = createTemporaryAccount("temporary-user", "ADMIN");
+            Tokens temporary = login("temporary-user", PASSWORD);
+            String hash = credentials.findById(id).orElseThrow().getPasswordHash();
+            assertProblem(change(temporary, "wrong-password", NEW_PASSWORD), 401);
+            assertProblem(change(temporary, PASSWORD, PASSWORD), 400);
+            assertProblem(change(temporary, PASSWORD, "short"), 400);
+            UserCredentials account = credentials.findById(id).orElseThrow();
+            assertEquals(hash, account.getPasswordHash());
+            assertTrue(account.isMustChangePassword());
+            assertTrue(json(me(temporary)).get("mustChangePassword").asBoolean());
+            assertPasswordChangeRequired(protectedRead(temporary));
+        }
+
+        @Test
+        void bootstrapAdminMustChangePasswordAndRestartPreservesCompletedChange() throws Exception {
+            runBootstrap("first-admin", PASSWORD);
+            User first = users.findByUsername("first-admin").orElseThrow();
+            assertTrue(credentials.findById(first.getId()).orElseThrow().isMustChangePassword());
+            Tokens temporary = login("first-admin", PASSWORD);
+            assertPasswordChangeRequired(mvc.perform(get("/api/users")
+                    .header(HttpHeaders.AUTHORIZATION, bearer(temporary))).andReturn());
+            assertEquals(204, change(temporary, PASSWORD, NEW_PASSWORD).getResponse().getStatus());
+
+            runBootstrap("first-admin", PASSWORD);
+            UserCredentials account = credentials.findById(first.getId()).orElseThrow();
+            assertFalse(account.isMustChangePassword());
+            assertTrue(encoder.matches(NEW_PASSWORD, account.getPasswordHash()));
+            Tokens permanent = login("first-admin", NEW_PASSWORD);
+            assertEquals(200, mvc.perform(get("/api/users")
+                    .header(HttpHeaders.AUTHORIZATION, bearer(permanent))).andReturn().getResponse().getStatus());
+        }
+
+        @Test
+        void currentDatabaseFlagRestrictsPreviouslyIssuedJwtAndRefresh() throws Exception {
+            Tokens original = login("admin", PASSWORD);
+            assertEquals(200, protectedRead(original).getResponse().getStatus());
+            UserCredentials account = credentials.findById(admin.getId()).orElseThrow();
+            account.setMustChangePassword(true);
+            credentials.save(account);
+
+            assertTrue(json(me(original)).get("mustChangePassword").asBoolean());
+            assertPasswordChangeRequired(protectedRead(original));
+            assertPasswordChangeRequired(mvc.perform(get("/api/users")
+                    .header(HttpHeaders.AUTHORIZATION, bearer(original))).andReturn());
+            MvcResult refreshed = refresh(original);
+            assertTrue(json(refreshed).get("mustChangePassword").asBoolean());
+            assertPasswordChangeRequired(protectedRead(tokenResponse(refreshed)));
+        }
+
+        @Test
+        void administrativeResponsesExposePasswordChangeStateIncludingAccountsWithoutCredentials() throws Exception {
+            UUID id = createTemporaryAccount("temporary-user", "USER");
+            Tokens administrator = login("admin", PASSWORD);
+            MvcResult details = mvc.perform(get("/api/users/" + id)
+                    .header(HttpHeaders.AUTHORIZATION, bearer(administrator))).andReturn();
+            assertTrue(json(details).get("mustChangePassword").asBoolean());
+            MvcResult list = mvc.perform(get("/api/users")
+                    .header(HttpHeaders.AUTHORIZATION, bearer(administrator))).andReturn();
+            for (JsonNode entry : json(list)) {
+                assertEquals(id.toString().equals(entry.get("id").asString()),
+                        entry.get("mustChangePassword").asBoolean());
+            }
+            assertTrue(json(status(administrator, id, false)).get("mustChangePassword").asBoolean());
+            assertNoPassword(details);
+            assertNoPassword(list);
+        }
+
+        @Test
+        @WithMockUser(username = "admin", authorities = PasswordChangePolicy.REQUIRED_AUTHORITY)
+        void restrictedAuthenticationCannotBypassAdministrativeMethodSecurity() {
+            assertThrows(AccessDeniedException.class,
+                    () -> accounts.createUser(new CreateUserRequest("bypass", PASSWORD, UserRole.ADMIN)));
+            assertThrows(AccessDeniedException.class, () -> accounts.getUsers());
+            assertThrows(AccessDeniedException.class, () -> accounts.resetPassword(employee.getId(), NEW_PASSWORD));
+            assertThrows(AccessDeniedException.class, () -> accounts.setEnabled(employee.getId(), false));
+        }
+
+        private UUID createTemporaryAccount(String username, String role) throws Exception {
+            Tokens administrator = login("admin", PASSWORD);
+            MvcResult created = mvc.perform(post("/api/users")
+                    .header(HttpHeaders.AUTHORIZATION, bearer(administrator))
+                    .contentType(MediaType.APPLICATION_JSON).content(createJson(username, role, PASSWORD))).andReturn();
+            assertEquals(201, created.getResponse().getStatus(), created.getResponse().getContentAsString());
+            assertTrue(json(created).get("mustChangePassword").asBoolean());
+            assertNoPassword(created);
+            return UUID.fromString(json(created).get("id").asString());
+        }
+
+        private MvcResult protectedRead(Tokens tokens) throws Exception {
+            return mvc.perform(get("/api/test/protected")
+                    .header(HttpHeaders.AUTHORIZATION, bearer(tokens))).andReturn();
+        }
+
+        private void assertPasswordChangeRequired(MvcResult result) throws Exception {
+            assertProblem(result, 403);
+            assertEquals(PasswordChangePolicy.REQUIRED_AUTHORITY, json(result).get("code").asString());
+        }
+    }
+
     private Tokens login(String username, String password) throws Exception {
         MvcResult result = loginAttempt(username, password);
         assertEquals(200, result.getResponse().getStatus(), result.getResponse().getContentAsString());
@@ -660,6 +842,15 @@ class SecurityIntegrationTest {
         assertFalse(body.contains("{bcrypt}"));
     }
     private record Tokens(String access, String refresh) { }
+
+    @RestController
+    static class ProtectedEndpoints {
+        @GetMapping("/api/test/protected")
+        String read() { return "ok"; }
+
+        @PostMapping("/api/test/protected")
+        String write() { return "ok"; }
+    }
 
     @TestConfiguration(proxyBeanMethods = false)
     static class TestTime {

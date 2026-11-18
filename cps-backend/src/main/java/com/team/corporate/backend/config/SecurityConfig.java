@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.ProviderManager;
@@ -69,8 +70,10 @@ public class SecurityConfig {
         };
         return stateless(http)
                 .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/auth/password").authenticated()
                         .requestMatchers("/api/users", "/api/users/**").hasRole("ADMIN")
-                        .anyRequest().authenticated())
+                        .anyRequest().hasAnyRole("USER", "MANAGER", "ADMIN"))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(entryPoint)
                         .accessDeniedHandler((request, response, exception) ->

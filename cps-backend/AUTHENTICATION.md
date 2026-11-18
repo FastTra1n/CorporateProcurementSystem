@@ -11,6 +11,31 @@ passwords, and enable or disable accounts. HTTP security and `@PreAuthorize`
 enforce these permissions. `MANAGER` remains a procurement role. Users can change
 their own password by supplying the current password.
 
+## Required password change
+
+Passwords assigned when an administrator creates an account, resets its password,
+or provisions the first administrator are temporary. Login and refresh responses,
+as well as user responses including `GET /api/auth/me`, contain the boolean
+`mustChangePassword` field.
+
+When this field is `true`, the account can only log in, refresh tokens, log out,
+read its own profile (`GET /api/auth/me`), and change its password
+(`PUT /api/auth/password`). All other protected requests return HTTP 403 with
+Problem Detail property `code: "PASSWORD_CHANGE_REQUIRED"`, including requests
+from an administrator. The server checks the current database flag for each
+Bearer request and withholds role authorities while a password change is required.
+
+Change the password using `currentPassword` and `newPassword`. The new password
+must differ from the current password and satisfy the existing password policy.
+On success, the endpoint returns 204, clears `mustChangePassword`, and revokes
+all of the account's sessions. Log in again with the new password to get
+unrestricted tokens. Invalid changes preserve both the flag and existing sessions.
+
+The migration preserves existing accounts without forcing an unexpected password
+change. New accounts and subsequent administrative password resets require one.
+Restarting bootstrap provisioning never resets an existing administrator's flag
+or password.
+
 ## Configuration
 
 Set `JWT_SECRET` to a Base64-encoded cryptographically random secret containing at

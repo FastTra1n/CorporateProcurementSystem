@@ -46,11 +46,15 @@ public class SessionJwtAuthenticationConverter implements Converter<Jwt, Abstrac
                     .orElseThrow(() -> new InvalidBearerTokenException("Сессия недействительна."));
             var user = session.getUser();
             if (!session.isActive(clock.instant()) || !user.isEnabled()
-                    || !user.getId().equals(userId) || !credentials.existsById(userId)) {
+                    || !user.getId().equals(userId)) {
                 throw new InvalidBearerTokenException("Сессия недействительна.");
             }
+            var account = credentials.findById(userId)
+                    .orElseThrow(() -> new InvalidBearerTokenException("Сессия недействительна."));
+            String authority = account.isMustChangePassword()
+                    ? PasswordChangePolicy.REQUIRED_AUTHORITY : "ROLE_" + user.getUserRole().name();
             return new JwtAuthenticationToken(jwt,
-                    AuthorityUtils.createAuthorityList("ROLE_" + user.getUserRole().name()), user.getUsername());
+                    AuthorityUtils.createAuthorityList(authority), user.getUsername());
         } catch (DataAccessException | TransactionException exception) {
             throw new AuthenticationServiceException("Не удалось проверить сессию.", exception);
         }

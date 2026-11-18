@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class AccountsService {
@@ -49,21 +50,26 @@ public class AccountsService {
         }
         users.save(user);
         credentials.saveAndFlush(new UserCredentials(user, encoder.encode(request.password())));
-        return UserResponse.of(user);
+        return response(user);
     }
 
     @NotNull
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional(readOnly = true)
     public List<UserResponse> getUsers() {
-        return users.findAll().stream().map(UserResponse::of).toList();
+        List<User> allUsers = users.findAll();
+        var passwordChanges = credentials.findAllById(allUsers.stream().map(User::getId).toList()).stream()
+                .collect(Collectors.toMap(UserCredentials::getUserId, UserCredentials::isMustChangePassword));
+        return allUsers.stream()
+                .map(user -> UserResponse.of(user, passwordChanges.getOrDefault(user.getId(), false)))
+                .toList();
     }
 
     @NotNull
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional(readOnly = true)
     public UserResponse getUser(@NotNull UUID id) {
-        return UserResponse.of(findUser(id));
+        return response(findUser(id));
     }
 
     @NotNull
@@ -76,14 +82,14 @@ public class AccountsService {
         user.setEnabled(enabled);
         users.save(user);
         if (changed || !enabled) sessions.revokeAll(userId);
-        return UserResponse.of(user);
+        return response(user);
     }
 
     @NotNull
     @PreAuthorize("isAuthenticated() and #username == authentication.name")
     @Transactional(readOnly = true)
     public UserResponse currentUser(@NotNull String username) {
-        return users.findByUsername(username).map(UserResponse::of)
+        return users.findByUsername(username).map(this::response)
                 .orElseThrow(() -> new BadCredentialsException("Учётная запись недоступна."));
     }
 
@@ -98,7 +104,11 @@ public class AccountsService {
         if (!encoder.matches(request.currentPassword(), account.getPasswordHash())) {
             throw new BadCredentialsException("Неверное имя пользователя или пароль.");
         }
+        if (encoder.matches(request.newPassword(), account.getPasswordHash())) {
+            throw new IllegalArgumentException("Новый пароль должен отличаться от текущего.");
+        }
         account.setPasswordHash(encoder.encode(request.newPassword()));
+        account.setMustChangePassword(false);
         credentials.save(account);
         sessions.revokeAll(user.getId());
     }
@@ -111,8 +121,16 @@ public class AccountsService {
         UserCredentials account = credentials.findById(userId)
                 .orElseGet(() -> new UserCredentials(user, ""));
         account.setPasswordHash(encoder.encode(password));
+        account.setMustChangePassword(true);
         credentials.save(account);
         sessions.revokeAll(userId);
+    }
+
+    @NotNull
+    private UserResponse response(@NotNull User user) {
+        boolean mustChangePassword = credentials.findById(user.getId())
+                .map(UserCredentials::isMustChangePassword).orElse(false);
+        return UserResponse.of(user, mustChangePassword);
     }
 
     @NotNull
