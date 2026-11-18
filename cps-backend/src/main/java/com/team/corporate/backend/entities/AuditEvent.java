@@ -2,6 +2,8 @@ package com.team.corporate.backend.entities;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.Immutable;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -23,10 +25,12 @@ public class AuditEvent {
     private String actorUsername;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(name = "event_type", length = 40, nullable = false, updatable = false)
     private AuditEventType eventType;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(name = "entity_type", length = 40, nullable = false, updatable = false)
     private AuditEntityType entityType;
 
