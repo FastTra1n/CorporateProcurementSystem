@@ -8,6 +8,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -36,6 +38,13 @@ public class Product {
     @Column(name = "price", nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
+    @ManyToMany
+    @JoinTable(
+            name = "product_tags",
+            joinColumns = @JoinColumn(name = "product_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private Set<Tag> tags = new LinkedHashSet<>();
 
     @Version
     private Long version;
@@ -92,6 +101,25 @@ public class Product {
 
     public void setPrice(@NotNull BigDecimal price) {
         this.price = EntityValidation.requireMoney(price, "Цена");
+    }
+
+    @NotNull
+    public Set<Tag> getTags() {
+        return tags;
+    }
+
+    public void addTag(@NotNull Tag tag) {
+        EntityValidation.requireNonNull(tag, "Тег");
+        if (tags.add(tag)) {
+            tag.getProducts().add(this);
+        }
+    }
+
+    public void removeTag(@NotNull Tag tag) {
+        EntityValidation.requireNonNull(tag, "Тег");
+        if (tags.remove(tag)) {
+            tag.getProducts().remove(this);
+        }
     }
 
     @PrePersist

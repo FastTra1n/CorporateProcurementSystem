@@ -84,6 +84,12 @@ public class SoftDeleteAdministrationService {
             if (record.entity() == USERS) {
                 deleteUserCredentialsAndSessions(record.id());
             }
+            if (record.entity() == PRODUCTS) {
+                jdbc.update("DELETE FROM product_tags WHERE product_id = ?", record.id());
+            }
+            if (record.entity() == TAGS) {
+                jdbc.update("DELETE FROM product_tags WHERE tag_id = ?", record.id());
+            }
             jdbc.update("DELETE FROM " + record.entity().table() + " WHERE id = ? AND deleted_at IS NOT NULL",
                     record.id());
         }

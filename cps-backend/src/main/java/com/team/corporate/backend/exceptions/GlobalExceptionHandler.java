@@ -103,6 +103,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             OrderItemNotFoundException.class,
             OrderNotFoundException.class,
             ProductNotFoundException.class,
+            TagNotFoundException.class,
             UserNotFoundException.class,
             WarehouseNotFoundException.class
     })

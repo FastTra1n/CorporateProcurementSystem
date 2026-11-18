@@ -10,7 +10,8 @@ public enum SoftDeletedEntity {
     INVENTORIES("inventories", "inventory"),
     ORDERS("orders", "orders"),
     ORDER_ITEMS("order-items", "order_items"),
-    AUDIT_LOGS("audit-logs", "audit_logs");
+    AUDIT_LOGS("audit-logs", "audit_logs"),
+    TAGS("tags", "tags");
 
     private final String path;
     private final String table;
