@@ -20,6 +20,9 @@ public class User {
     @Column(name = "username", nullable = false, unique = true)
     private String username;
 
+    @Column(name = "full_name", nullable = false)
+    private String fullName;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "user_role", nullable = false)
     private UserRole userRole;
@@ -35,7 +38,12 @@ public class User {
     }
 
     public User(@NotNull String username, @NotNull UserRole userRole) {
+        this(username, username, userRole);
+    }
+
+    public User(@NotNull String username, @NotNull String fullName, @NotNull UserRole userRole) {
         this.username = EntityValidation.requireText(username, "Имя пользователя");
+        this.fullName = EntityValidation.requireText(fullName, "Имя");
         this.userRole = EntityValidation.requireNonNull(userRole, "Роль");
     }
 
@@ -51,6 +59,15 @@ public class User {
 
     public void setUsername(@NotNull String username) {
         this.username = EntityValidation.requireText(username, "Имя пользователя");
+    }
+
+    @NotNull
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(@NotNull String fullName) {
+        this.fullName = EntityValidation.requireText(fullName, "Имя");
     }
 
     @NotNull

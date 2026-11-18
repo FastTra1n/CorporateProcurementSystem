@@ -72,7 +72,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/auth/password").authenticated()
-                        .requestMatchers("/api/users", "/api/users/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().hasAnyRole("USER", "MANAGER", "ADMIN"))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(entryPoint)

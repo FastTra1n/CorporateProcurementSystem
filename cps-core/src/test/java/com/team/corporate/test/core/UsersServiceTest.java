@@ -22,6 +22,7 @@ public class UsersServiceTest extends BaseServiceTest {
         // then
         assertNotNull(user.getId(), "ID пользователя не должен быть null");
         assertEquals("test_user", user.getUsername());
+        assertEquals("test_user", user.getFullName());
         assertEquals(UserRole.USER, user.getUserRole());
     }
 
@@ -79,6 +80,19 @@ public class UsersServiceTest extends BaseServiceTest {
         User updated = usersService.getUser(user.getId()).orElseThrow();
         assertEquals("new_name", updated.getUsername());
         assertEquals(UserRole.MANAGER, updated.getUserRole());
+    }
+
+    @Test
+    void legacyUsernameUpdatePreservesTheSeparateFullName() {
+        User user = usersService.createUser("original-login", UserRole.USER);
+        user.setFullName("Алексей Демченков");
+        usersRepository.update(user);
+
+        usersService.updateUser(user.getId(), "changed-login", UserRole.MANAGER);
+
+        User updated = usersService.getUser(user.getId()).orElseThrow();
+        assertEquals("changed-login", updated.getUsername());
+        assertEquals("Алексей Демченков", updated.getFullName());
     }
 
     @Test

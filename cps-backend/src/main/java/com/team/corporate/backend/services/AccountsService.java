@@ -2,14 +2,19 @@ package com.team.corporate.backend.services;
 
 import com.team.corporate.backend.dto.ChangePasswordRequest;
 import com.team.corporate.backend.dto.CreateUserRequest;
+import com.team.corporate.backend.dto.PageResponse;
+import com.team.corporate.backend.dto.UpdateUserRequest;
 import com.team.corporate.backend.dto.UserResponse;
 import com.team.corporate.backend.entities.UserCredentials;
 import com.team.corporate.backend.repositories.SpringUsersRepository;
 import com.team.corporate.backend.repositories.UserCredentialsRepository;
 import com.team.corporate.core.entities.User;
 import com.team.corporate.core.exceptions.UserNotFoundException;
+import com.team.corporate.core.utils.EntityValidation;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
@@ -17,12 +22,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 public class AccountsService {
+    public static final int MAX_PAGE_SIZE = 100;
+
     private final SpringUsersRepository users;
     private final UserCredentialsRepository credentials;
     private final PasswordEncoder encoder;
@@ -44,7 +50,7 @@ public class AccountsService {
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public UserResponse createUser(@NotNull CreateUserRequest request) {
-        User user = new User(request.username(), request.role());
+        User user = new User(request.username(), request.fullName(), request.role());
         if (users.findByUsername(user.getUsername()).isPresent()) {
             throw new DataIntegrityViolationException("Пользователь уже существует.");
         }
@@ -56,13 +62,15 @@ public class AccountsService {
     @NotNull
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional(readOnly = true)
-    public List<UserResponse> getUsers() {
-        List<User> allUsers = users.findAll();
+    public PageResponse<UserResponse> getUsers(int page, int size) {
+        if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
+            throw new IllegalArgumentException("Номер страницы: от 0; размер страницы: от 1 до " + MAX_PAGE_SIZE + ".");
+        }
+        var allUsers = users.findAll(PageRequest.of(page, size, Sort.by("username", "id")));
         var passwordChanges = credentials.findAllById(allUsers.stream().map(User::getId).toList()).stream()
                 .collect(Collectors.toMap(UserCredentials::getUserId, UserCredentials::isMustChangePassword));
-        return allUsers.stream()
-                .map(user -> UserResponse.of(user, passwordChanges.getOrDefault(user.getId(), false)))
-                .toList();
+        return PageResponse.of(allUsers.map(user ->
+                UserResponse.of(user, passwordChanges.getOrDefault(user.getId(), false))));
     }
 
     @NotNull
@@ -70,6 +78,27 @@ public class AccountsService {
     @Transactional(readOnly = true)
     public UserResponse getUser(@NotNull UUID id) {
         return response(findUser(id));
+    }
+
+    @NotNull
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    public UserResponse updateUser(@NotNull UUID id, @NotNull UpdateUserRequest request) {
+        User user = users.findByIdForUpdate(id)
+                .orElseThrow(() -> new UserNotFoundException("Пользователь не найден."));
+        String username = EntityValidation.requireText(request.username(), "Имя пользователя");
+        users.findByUsername(username).filter(existing -> !existing.getId().equals(id)).ifPresent(existing -> {
+            throw new DataIntegrityViolationException("Пользователь уже существует.");
+        });
+        boolean securityChanged = !user.getUsername().equals(username)
+                || user.getUserRole() != request.role() || user.isEnabled() != request.enabled();
+        user.setUsername(username);
+        user.setFullName(request.fullName());
+        user.setUserRole(request.role());
+        user.setEnabled(request.enabled());
+        users.save(user);
+        if (securityChanged || !user.isEnabled()) sessions.revokeAll(id);
+        return response(user);
     }
 
     @NotNull

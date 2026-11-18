@@ -6,10 +6,10 @@ import com.team.corporate.core.entities.UserRole;
 import java.time.Instant;
 import java.util.UUID;
 
-public record UserResponse(UUID id, String username, UserRole role, Instant createdAt,
+public record UserResponse(UUID id, String username, String fullName, UserRole role, Instant createdAt,
                            boolean enabled, boolean mustChangePassword) {
     public static UserResponse of(User user, boolean mustChangePassword) {
-        return new UserResponse(user.getId(), user.getUsername(), user.getUserRole(),
+        return new UserResponse(user.getId(), user.getUsername(), user.getFullName(), user.getUserRole(),
                 user.getCreatedAt(), user.isEnabled(), mustChangePassword);
     }
 }

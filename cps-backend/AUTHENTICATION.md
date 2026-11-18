@@ -6,8 +6,8 @@ token. Spring Security's OAuth2 Resource Server validates Bearer tokens. HTTP
 sessions, form login, Basic authentication, and authentication cookies are disabled.
 All request and response bodies below are JSON.
 
-Only `ADMIN` accounts can create users, query the full user list, reset users'
-passwords, and enable or disable accounts. HTTP security and `@PreAuthorize`
+Only `ADMIN` accounts can create and edit users, query the paginated user list,
+reset users' passwords, and enable or disable accounts. HTTP security and `@PreAuthorize`
 enforce these permissions. `MANAGER` remains a procurement role. Users can change
 their own password by supplying the current password.
 
@@ -53,21 +53,58 @@ at its URL.
 
 Provision the first administrator with `BOOTSTRAP_ADMIN_USERNAME` and
 `BOOTSTRAP_ADMIN_PASSWORD`.
+Remove these provisioning variables after the first account is created, before
+changing that administrator's login or role; provisioning follows the configured
+username on each application startup.
 
 ## Endpoints
 
-| Endpoint                       | Access and body                                    | Success            |
-|--------------------------------|----------------------------------------------------|--------------------|
-| `POST /api/auth/login`         | Public; `username`, `password`                     | 200 token response |
-| `POST /api/auth/refresh`       | Refresh token; `refreshToken`                      | 200 token response |
-| `POST /api/auth/logout`        | Refresh token; `refreshToken`                      | 204                |
-| `GET /api/auth/me`             | Bearer access token                                | 200 user details   |
-| `PUT /api/auth/password`       | Bearer token; `currentPassword`, `newPassword`     | 204                |
-| `GET /api/users`               | Admin Bearer token                                 | 200 all users      |
-| `GET /api/users/{id}`          | Admin Bearer token                                 | 200 user details   |
-| `POST /api/users`              | Admin Bearer token; `username`, `password`, `role` | 201                |
-| `PUT /api/users/{id}/password` | Admin Bearer token; `password`                     | 204                |
-| `PATCH /api/users/{id}/status` | Admin Bearer token; `enabled` (boolean)            | 200 user details   |
+| Endpoint                             | Access and body                                                | Success            |
+|--------------------------------------|----------------------------------------------------------------|--------------------|
+| `POST /api/auth/login`               | Public; `username`, `password`                                 | 200 token response |
+| `POST /api/auth/refresh`             | Refresh token; `refreshToken`                                  | 200 token response |
+| `POST /api/auth/logout`              | Refresh token; `refreshToken`                                  | 204                |
+| `GET /api/auth/me`                   | Bearer access token                                            | 200 user details   |
+| `PUT /api/auth/password`             | Bearer token; `currentPassword`, `newPassword`                 | 204                |
+| `GET /api/admin/users`               | Admin Bearer token; optional `page`, `size`                    | 200 user page      |
+| `GET /api/admin/users/{id}`          | Admin Bearer token                                             | 200 user details   |
+| `POST /api/admin/users`              | Admin Bearer token; `username`, `fullName`, `password`, `role` | 201                |
+| `PUT /api/admin/users/{id}`          | Admin Bearer token; `username`, `fullName`, `role`, `enabled`  | 200 user details   |
+| `PUT /api/admin/users/{id}/password` | Admin Bearer token; `password`                                 | 204                |
+| `PATCH /api/admin/users/{id}/status` | Admin Bearer token; `enabled` (boolean)                        | 200 user details   |
+
+## User administration
+
+Administrative user endpoints are under `/api/admin/users`. The former
+`/api/users` routes are no longer mapped. User responses, including
+`GET /api/auth/me`, contain both the login `username` and display name `fullName`.
+Both values are trimmed, required, and limited to 255 characters. Login names
+remain unique and case-sensitive. Existing users receive their current username
+as their initial full name during migration.
+
+`GET /api/admin/users?page=0&size=20` uses zero-based page numbers. `page` must
+be nonnegative; `size` must be between 1 and 100 and defaults to 20. Results have
+a stable order by username and UUID. The response is an object with `content`,
+`page`, `size`, `totalElements`, and `totalPages`. An out-of-range page returns an
+empty `content` array with the actual totals. Users without password credentials
+are included. Password hashes are never returned.
+
+`PUT /api/admin/users/{id}` replaces all four editable fields. It does not change
+the password or `mustChangePassword`. For example:
+
+```json
+{
+  "username": "procurement-manager",
+  "fullName": "Алексей Демченков",
+  "role": "MANAGER",
+  "enabled": true
+}
+```
+
+Changing the login, role, or enabled status revokes all of the affected account's
+sessions. Changing only the full name preserves them. A conflicting login returns
+409, invalid fields or pagination parameters return 400, and an unknown UUID
+returns 404. All changes in a failed update are rolled back.
 
 A token response contains `accessToken`, `refreshToken`, `tokenType` (`Bearer`),
 `expiresIn`, and `refreshExpiresIn` (lifetimes in seconds). Send the access JWT in
