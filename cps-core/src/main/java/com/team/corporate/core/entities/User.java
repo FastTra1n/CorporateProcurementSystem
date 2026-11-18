@@ -3,6 +3,8 @@ package com.team.corporate.core.entities;
 import com.team.corporate.core.utils.EntityValidation;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -21,6 +23,7 @@ public class User {
     private String username;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "user_role", nullable = false)
     private UserRole userRole;
 
