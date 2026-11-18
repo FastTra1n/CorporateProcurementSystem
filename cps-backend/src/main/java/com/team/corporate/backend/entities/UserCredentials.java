@@ -15,7 +15,8 @@ public class UserCredentials {
     private UUID userId;
 
     @MapsId
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    // EAGER нужен для работы soft delete.
+    @OneToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 

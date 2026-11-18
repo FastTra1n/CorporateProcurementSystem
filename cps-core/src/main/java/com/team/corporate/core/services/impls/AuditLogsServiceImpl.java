@@ -49,6 +49,12 @@ public class AuditLogsServiceImpl implements AuditLogsService {
     }
 
     @Override
+    public void deleteAuditLog(@NotNull UUID id) {
+        EntityValidation.requireNonNull(id, "Идентификатор записи аудита");
+        auditLogsRepository.delete(id);
+    }
+
+    @Override
     @NotNull
     public Optional<AuditLog> getAuditLog(@NotNull UUID id) {
         EntityValidation.requireNonNull(id, "Идентификатор");

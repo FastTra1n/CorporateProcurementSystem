@@ -278,11 +278,11 @@ public class OrdersServiceImpl implements OrdersService {
         transactions.execute(() -> {
             User manager = usersRepository.getById(managerId)
                     .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден."));
-            if (manager.getUserRole() != UserRole.MANAGER) {
-                throw new IllegalArgumentException("Доступ только для менеджера.");
+            if (manager.getUserRole() != UserRole.MANAGER && manager.getUserRole() != UserRole.ADMIN) {
+                throw new IllegalArgumentException("Доступ только для менеджера или администратора.");
             }
             Order order = ordersRepository.getByIdForUpdate(orderId)
-                    .orElseThrow(() -> new IllegalArgumentException("Заказ не найден."));
+                    .orElseThrow(() -> new OrderNotFoundException("Заказ не найден."));
             if (order.getStatus() == status) {
                 return;
             }

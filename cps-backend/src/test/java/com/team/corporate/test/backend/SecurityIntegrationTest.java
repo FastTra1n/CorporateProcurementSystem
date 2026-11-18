@@ -25,6 +25,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextImpl;
@@ -85,6 +86,7 @@ class SecurityIntegrationTest {
     @Autowired private JwtEncoder jwtEncoder;
     @Autowired private TokenProperties tokenProperties;
     @Autowired private MutableClock clock;
+    @Autowired private JdbcTemplate jdbc;
 
     private User admin;
     private User manager;
@@ -97,7 +99,7 @@ class SecurityIntegrationTest {
         refreshTokens.deleteAllInBatch();
         sessions.deleteAllInBatch();
         credentials.deleteAll();
-        users.deleteAll();
+        jdbc.update("DELETE FROM users");
         admin = users.save(new User("admin", UserRole.ADMIN));
         manager = users.save(new User("manager", UserRole.MANAGER));
         employee = users.save(new User("employee", UserRole.USER));
