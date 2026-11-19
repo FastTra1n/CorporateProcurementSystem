@@ -31,6 +31,7 @@ public class HibernateFactory {
         properties.put("hibernate.connection.datasource", createDataSource(appConfig));
         properties.put("hibernate.hbm2ddl.auto", appConfig.getHibernateDdl());
         properties.put("hibernate.jdbc.time_zone", appConfig.getJdbcTimeZone());
+        properties.put("hibernate.type.prefer_native_enum_types", true);
 
         configuration.setProperties(properties);
         return configuration.buildSessionFactory();

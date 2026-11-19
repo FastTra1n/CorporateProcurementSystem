@@ -4,6 +4,7 @@ import com.team.corporate.core.entities.User;
 import com.team.corporate.core.repositories.UsersRepository;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.data.repository.ListCrudRepository;
+import org.springframework.data.repository.ListPagingAndSortingRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,7 +19,8 @@ import java.util.UUID;
 
 @Repository
 @Transactional(readOnly = true)
-public interface SpringUsersRepository extends UsersRepository, ListCrudRepository<User, UUID> {
+public interface SpringUsersRepository extends UsersRepository, ListCrudRepository<User, UUID>,
+        ListPagingAndSortingRepository<User, UUID> {
     @NotNull
     Optional<User> findByUsername(@NotNull String username);
 

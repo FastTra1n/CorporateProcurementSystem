@@ -11,6 +11,8 @@ dependencies {
     implementation(libs.spring.security)
     implementation(libs.spring.security.resource.server)
     implementation(libs.spring.security.jose)
+    implementation(libs.spring.actuator)
+    implementation(libs.springdoc.webmvc.ui)
     implementation(project(":cps-core"))
     implementation(libs.jetbrains.annotations)
 
@@ -31,4 +33,12 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+springBoot {
+    mainClass.set("com.team.corporate.backend.BackendMain")
+}
+
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
+    archiveFileName.set("cps-backend.jar")
 }

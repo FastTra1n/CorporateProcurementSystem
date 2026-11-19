@@ -1,6 +1,8 @@
 package com.team.corporate.backend.exceptions;
 
 import com.team.corporate.core.exceptions.*;
+import com.team.corporate.backend.security.PasswordChangePolicy;
+import com.team.corporate.backend.filter.CorrelationIdFilter;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ElementKind;
 import org.jetbrains.annotations.NotNull;
@@ -18,6 +20,7 @@ import org.springframework.http.*;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.method.ParameterErrors;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -93,6 +96,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> handleAccessDenied(
             @NonNull AccessDeniedException exception, @NonNull WebRequest request
     ) {
+        if (PasswordChangePolicy.isRequired(SecurityContextHolder.getContext().getAuthentication())) {
+            ProblemDetail body = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN,
+                    "Сначала смените временный пароль.");
+            body.setProperty("code", PasswordChangePolicy.REQUIRED_AUTHORITY);
+            return handleExceptionInternal(exception, body, new HttpHeaders(), HttpStatus.FORBIDDEN, request);
+        }
         return problem(exception, HttpStatus.FORBIDDEN, "Недостаточно прав для выполнения операции.", request);
     }
 
@@ -271,8 +280,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     ) {
         HttpHeaders responseHeaders = new HttpHeaders();
         responseHeaders.putAll(headers);
-        if (body instanceof ProblemDetail) {
+        if (body instanceof ProblemDetail problem) {
             responseHeaders.setContentType(MediaType.APPLICATION_PROBLEM_JSON);
+            if (request.getAttribute(CorrelationIdFilter.ATTRIBUTE, WebRequest.SCOPE_REQUEST) instanceof String id) {
+                problem.setProperty("correlationId", id);
+            }
         }
         return super.createResponseEntity(body, responseHeaders, status, request);
     }

@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.ProviderManager;
@@ -47,9 +48,11 @@ public class SecurityConfig {
 
     @Bean
     @Order(1)
-    public SecurityFilterChain authenticationEndpoints(@NotNull HttpSecurity http) {
+    public SecurityFilterChain publicEndpoints(@NotNull HttpSecurity http) {
         return stateless(http)
-                .securityMatcher("/api/auth/login", "/api/auth/refresh", "/api/auth/logout")
+                .securityMatcher("/api/auth/login", "/api/auth/refresh", "/api/auth/logout",
+                        "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
+                        "/v3/api-docs.yaml", "/actuator/health")
                 .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
                 .build();
     }
@@ -69,8 +72,11 @@ public class SecurityConfig {
         };
         return stateless(http)
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/users", "/api/users/**").hasRole("ADMIN")
-                        .anyRequest().authenticated())
+                        .requestMatchers("/actuator/**").denyAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/auth/password").authenticated()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .anyRequest().hasAnyRole("USER", "MANAGER", "ADMIN"))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(entryPoint)
                         .accessDeniedHandler((request, response, exception) ->
