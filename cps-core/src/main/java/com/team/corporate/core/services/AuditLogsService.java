@@ -12,6 +12,8 @@ public interface AuditLogsService {
     @NotNull
     AuditLog createAuditLog(@NotNull UUID orderId, @NotNull UUID changedByUserId, @NotNull OrderStatus oldStatus, @NotNull OrderStatus newStatus);
 
+    void deleteAuditLog(@NotNull UUID id);
+
     @NotNull
     Optional<AuditLog> getAuditLog(@NotNull UUID id);
 

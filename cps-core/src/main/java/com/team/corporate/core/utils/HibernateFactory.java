@@ -24,13 +24,14 @@ public class HibernateFactory {
         configuration.addAnnotatedClasses(
                 AuditLog.class, Category.class, Inventory.class,
                 Order.class, OrderItem.class, Product.class,
-                User.class, Warehouse.class
+                User.class, Warehouse.class, Tag.class
         );
 
         Properties properties = new Properties();
         properties.put("hibernate.connection.datasource", createDataSource(appConfig));
         properties.put("hibernate.hbm2ddl.auto", appConfig.getHibernateDdl());
         properties.put("hibernate.jdbc.time_zone", appConfig.getJdbcTimeZone());
+        properties.put("hibernate.type.prefer_native_enum_types", true);
 
         configuration.setProperties(properties);
         return configuration.buildSessionFactory();

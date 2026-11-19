@@ -2,13 +2,21 @@ package com.team.corporate.core.entities;
 
 import com.team.corporate.core.utils.EntityValidation;
 import jakarta.persistence.*;
+import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SoftDeleteType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
 @Table(name = "warehouses")
+@SoftDelete(
+        strategy = SoftDeleteType.TIMESTAMP,
+        columnName = "deleted_at"
+)
 public class Warehouse {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -20,6 +28,9 @@ public class Warehouse {
 
     @Column(name = "location")
     private String location;
+
+    @Version
+    private Long version;
 
     public Warehouse() {
     }
@@ -55,4 +66,5 @@ public class Warehouse {
     public void setLocation(@Nullable String location) {
         this.location = EntityValidation.optionalText(location, "Адрес");
     }
+
 }

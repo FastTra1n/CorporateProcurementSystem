@@ -1,9 +1,16 @@
 package com.team.corporate.backend.repositories;
 
 import com.team.corporate.core.entities.Order;
+import com.team.corporate.core.entities.Product;
 import com.team.corporate.core.repositories.OrdersRepository;
 import jakarta.persistence.LockModeType;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.ListCrudRepository;
@@ -18,7 +25,7 @@ import java.util.UUID;
 
 @Repository
 @Transactional(readOnly = true)
-public interface SpringOrdersRepository extends OrdersRepository, ListCrudRepository<Order, UUID> {
+public interface SpringOrdersRepository extends OrdersRepository, ListCrudRepository<Order, UUID>, JpaSpecificationExecutor<Order> {
     String SELECT_QUERY = "SELECT o FROM Order o JOIN FETCH o.user";
 
     @Override
@@ -32,6 +39,10 @@ public interface SpringOrdersRepository extends OrdersRepository, ListCrudReposi
     @Query(SELECT_QUERY)
     @NotNull
     List<Order> getAll();
+
+    @Override
+    @NotNull
+    Page<Order> findAll(@NonNull Specification<Order> spec, @NonNull Pageable page);
 
     @Override
     @Query(SELECT_QUERY + " WHERE o.id = :id")

@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS tags
+(
+    id         UUID PRIMARY KEY,
+    name       VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    version    BIGINT       NOT NULL DEFAULT 0
+);
+
+ALTER TABLE tags ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE tags ADD COLUMN IF NOT EXISTS version BIGINT NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS product_tags
+(
+    product_id UUID NOT NULL REFERENCES products (id) ON DELETE CASCADE,
+    tag_id     UUID NOT NULL REFERENCES tags (id) ON DELETE CASCADE,
+    PRIMARY KEY (product_id, tag_id)
+);
+
+CREATE INDEX IF NOT EXISTS product_tags_tag_idx ON product_tags (tag_id);

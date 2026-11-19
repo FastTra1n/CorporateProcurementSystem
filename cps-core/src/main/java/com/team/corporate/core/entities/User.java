@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SoftDeleteType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -13,6 +15,10 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "users")
+@SoftDelete(
+        strategy = SoftDeleteType.TIMESTAMP,
+        columnName = "deleted_at"
+)
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -21,6 +27,9 @@ public class User {
 
     @Column(name = "username", nullable = false, unique = true)
     private String username;
+
+    @Column(name = "full_name", nullable = false)
+    private String fullName;
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
@@ -34,11 +43,19 @@ public class User {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Version
+    private Long version;
+
     public User() {
     }
 
     public User(@NotNull String username, @NotNull UserRole userRole) {
+        this(username, username, userRole);
+    }
+
+    public User(@NotNull String username, @NotNull String fullName, @NotNull UserRole userRole) {
         this.username = EntityValidation.requireText(username, "Имя пользователя");
+        this.fullName = EntityValidation.requireText(fullName, "Имя");
         this.userRole = EntityValidation.requireNonNull(userRole, "Роль");
     }
 
@@ -54,6 +71,15 @@ public class User {
 
     public void setUsername(@NotNull String username) {
         this.username = EntityValidation.requireText(username, "Имя пользователя");
+    }
+
+    @NotNull
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(@NotNull String fullName) {
+        this.fullName = EntityValidation.requireText(fullName, "Имя");
     }
 
     @NotNull
@@ -77,4 +103,5 @@ public class User {
     public Instant getCreatedAt() {
         return createdAt;
     }
+
 }

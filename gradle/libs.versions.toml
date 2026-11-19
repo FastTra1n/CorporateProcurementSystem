@@ -17,6 +17,7 @@ jline = "3.30.6"
 spring-boot = "4.1.2"
 spring-dependency-management = "1.1.7"
 commons-csv = "1.14.1"
+springdoc-openapi = "3.2.0"
 
 [libraries]
 hibernate-core = { module = "org.hibernate.orm:hibernate-core", version.ref = "hibernate-core" }
@@ -45,6 +46,8 @@ flyway-core = { module = "org.flywaydb:flyway-core" }
 flyway-database-postgres = { module = "org.flywaydb:flyway-database-postgresql" }
 spring-flyway = { module = "org.springframework.boot:spring-boot-starter-flyway" }
 apache-commons-csv = { module = "org.apache.commons:commons-csv", version.ref = "commons-csv" }
+spring-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+springdoc-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc-openapi" }
 
 [plugins]
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }

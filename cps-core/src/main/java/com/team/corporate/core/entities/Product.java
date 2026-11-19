@@ -2,14 +2,22 @@ package com.team.corporate.core.entities;
 
 import com.team.corporate.core.utils.EntityValidation;
 import jakarta.persistence.*;
+import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SoftDeleteType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
 @Table(name = "products")
+@SoftDelete(
+        strategy = SoftDeleteType.TIMESTAMP,
+        columnName = "deleted_at"
+)
 public class Product {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -22,12 +30,24 @@ public class Product {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    // EAGER нужен для работы soft delete.
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "category_id")
     private Category category;
 
     @Column(name = "price", nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
+
+    @ManyToMany
+    @JoinTable(
+            name = "product_tags",
+            joinColumns = @JoinColumn(name = "product_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private Set<Tag> tags = new LinkedHashSet<>();
+
+    @Version
+    private Long version;
 
     public Product() {
     }
@@ -81,6 +101,25 @@ public class Product {
 
     public void setPrice(@NotNull BigDecimal price) {
         this.price = EntityValidation.requireMoney(price, "Цена");
+    }
+
+    @NotNull
+    public Set<Tag> getTags() {
+        return tags;
+    }
+
+    public void addTag(@NotNull Tag tag) {
+        EntityValidation.requireNonNull(tag, "Тег");
+        if (tags.add(tag)) {
+            tag.getProducts().add(this);
+        }
+    }
+
+    public void removeTag(@NotNull Tag tag) {
+        EntityValidation.requireNonNull(tag, "Тег");
+        if (tags.remove(tag)) {
+            tag.getProducts().remove(this);
+        }
     }
 
     @PrePersist

@@ -2,6 +2,8 @@ package com.team.corporate.core.entities;
 
 import com.team.corporate.core.utils.EntityValidation;
 import jakarta.persistence.*;
+import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SoftDeleteType;
 import org.jetbrains.annotations.NotNull;
 
 import java.math.BigDecimal;
@@ -9,17 +11,23 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "order_items")
+@SoftDelete(
+        strategy = SoftDeleteType.TIMESTAMP,
+        columnName = "deleted_at"
+)
 public class OrderItem {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    // EAGER нужен для работы soft delete.
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "order_id", nullable = false)
     private Order order;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    // EAGER нужен для работы soft delete.
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
@@ -28,6 +36,9 @@ public class OrderItem {
 
     @Column(name = "purchase_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal purchasePrice;
+
+    @Version
+    private Long version;
 
     public OrderItem() {
     }

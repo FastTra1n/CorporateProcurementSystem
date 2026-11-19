@@ -15,12 +15,16 @@ public class UserCredentials {
     private UUID userId;
 
     @MapsId
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    // EAGER нужен для работы soft delete.
+    @OneToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
+
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword = true;
 
     protected UserCredentials() {
     }
@@ -48,5 +52,13 @@ public class UserCredentials {
 
     public void setPasswordHash(@NotNull String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    public boolean isMustChangePassword() {
+        return mustChangePassword;
+    }
+
+    public void setMustChangePassword(boolean mustChangePassword) {
+        this.mustChangePassword = mustChangePassword;
     }
 }

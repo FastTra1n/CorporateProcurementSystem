@@ -6,10 +6,35 @@ token. Spring Security's OAuth2 Resource Server validates Bearer tokens. HTTP
 sessions, form login, Basic authentication, and authentication cookies are disabled.
 All request and response bodies below are JSON.
 
-Only `ADMIN` accounts can create users, query the full user list, reset users'
-passwords, and enable or disable accounts. HTTP security and `@PreAuthorize`
+Only `ADMIN` accounts can create and edit users, query the paginated user list,
+reset users' passwords, and enable or disable accounts. HTTP security and `@PreAuthorize`
 enforce these permissions. `MANAGER` remains a procurement role. Users can change
 their own password by supplying the current password.
+
+## Required password change
+
+Passwords assigned when an administrator creates an account, resets its password,
+or provisions the first administrator are temporary. Login and refresh responses,
+as well as user responses including `GET /api/auth/me`, contain the boolean
+`mustChangePassword` field.
+
+When this field is `true`, the account can only log in, refresh tokens, log out,
+read its own profile (`GET /api/auth/me`), and change its password
+(`PUT /api/auth/password`). All other protected requests return HTTP 403 with
+Problem Detail property `code: "PASSWORD_CHANGE_REQUIRED"`, including requests
+from an administrator. The server checks the current database flag for each
+Bearer request and withholds role authorities while a password change is required.
+
+Change the password using `currentPassword` and `newPassword`. The new password
+must differ from the current password and satisfy the existing password policy.
+On success, the endpoint returns 204, clears `mustChangePassword`, and revokes
+all of the account's sessions. Log in again with the new password to get
+unrestricted tokens. Invalid changes preserve both the flag and existing sessions.
+
+The migration preserves existing accounts without forcing an unexpected password
+change. New accounts and subsequent administrative password resets require one.
+Restarting bootstrap provisioning never resets an existing administrator's flag
+or password.
 
 ## Configuration
 
@@ -28,21 +53,58 @@ at its URL.
 
 Provision the first administrator with `BOOTSTRAP_ADMIN_USERNAME` and
 `BOOTSTRAP_ADMIN_PASSWORD`.
+Remove these provisioning variables after the first account is created, before
+changing that administrator's login or role; provisioning follows the configured
+username on each application startup.
 
 ## Endpoints
 
-| Endpoint                       | Access and body                                    | Success            |
-|--------------------------------|----------------------------------------------------|--------------------|
-| `POST /api/auth/login`         | Public; `username`, `password`                     | 200 token response |
-| `POST /api/auth/refresh`       | Refresh token; `refreshToken`                      | 200 token response |
-| `POST /api/auth/logout`        | Refresh token; `refreshToken`                      | 204                |
-| `GET /api/auth/me`             | Bearer access token                                | 200 user details   |
-| `PUT /api/auth/password`       | Bearer token; `currentPassword`, `newPassword`     | 204                |
-| `GET /api/users`               | Admin Bearer token                                 | 200 all users      |
-| `GET /api/users/{id}`          | Admin Bearer token                                 | 200 user details   |
-| `POST /api/users`              | Admin Bearer token; `username`, `password`, `role` | 201                |
-| `PUT /api/users/{id}/password` | Admin Bearer token; `password`                     | 204                |
-| `PATCH /api/users/{id}/status` | Admin Bearer token; `enabled` (boolean)            | 200 user details   |
+| Endpoint                             | Access and body                                                | Success            |
+|--------------------------------------|----------------------------------------------------------------|--------------------|
+| `POST /api/auth/login`               | Public; `username`, `password`                                 | 200 token response |
+| `POST /api/auth/refresh`             | Refresh token; `refreshToken`                                  | 200 token response |
+| `POST /api/auth/logout`              | Refresh token; `refreshToken`                                  | 204                |
+| `GET /api/auth/me`                   | Bearer access token                                            | 200 user details   |
+| `PUT /api/auth/password`             | Bearer token; `currentPassword`, `newPassword`                 | 204                |
+| `GET /api/admin/users`               | Admin Bearer token; optional `page`, `size`                    | 200 user page      |
+| `GET /api/admin/users/{id}`          | Admin Bearer token                                             | 200 user details   |
+| `POST /api/admin/users`              | Admin Bearer token; `username`, `fullName`, `password`, `role` | 201                |
+| `PUT /api/admin/users/{id}`          | Admin Bearer token; `username`, `fullName`, `role`, `enabled`  | 200 user details   |
+| `PUT /api/admin/users/{id}/password` | Admin Bearer token; `password`                                 | 204                |
+| `PATCH /api/admin/users/{id}/status` | Admin Bearer token; `enabled` (boolean)                        | 200 user details   |
+
+## User administration
+
+Administrative user endpoints are under `/api/admin/users`. The former
+`/api/users` routes are no longer mapped. User responses, including
+`GET /api/auth/me`, contain both the login `username` and display name `fullName`.
+Both values are trimmed, required, and limited to 255 characters. Login names
+remain unique and case-sensitive. Existing users receive their current username
+as their initial full name during migration.
+
+`GET /api/admin/users?page=0&size=20` uses zero-based page numbers. `page` must
+be nonnegative; `size` must be between 1 and 100 and defaults to 20. Results have
+a stable order by username and UUID. The response is an object with `content`,
+`page`, `size`, `totalElements`, and `totalPages`. An out-of-range page returns an
+empty `content` array with the actual totals. Users without password credentials
+are included. Password hashes are never returned.
+
+`PUT /api/admin/users/{id}` replaces all four editable fields. It does not change
+the password or `mustChangePassword`. For example:
+
+```json
+{
+  "username": "procurement-manager",
+  "fullName": "Алексей Демченков",
+  "role": "MANAGER",
+  "enabled": true
+}
+```
+
+Changing the login, role, or enabled status revokes all of the affected account's
+sessions. Changing only the full name preserves them. A conflicting login returns
+409, invalid fields or pagination parameters return 400, and an unknown UUID
+returns 404. All changes in a failed update are rolled back.
 
 A token response contains `accessToken`, `refreshToken`, `tokenType` (`Bearer`),
 `expiresIn`, and `refreshExpiresIn` (lifetimes in seconds). Send the access JWT in

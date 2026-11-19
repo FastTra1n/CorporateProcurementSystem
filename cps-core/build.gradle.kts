@@ -15,3 +15,7 @@ dependencies {
     testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.h2database)
 }
+
+tasks.test {
+    useJUnitPlatform()
+}
