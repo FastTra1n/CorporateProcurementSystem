@@ -3,6 +3,7 @@ package com.team.corporate.backend.repositories;
 import com.team.corporate.core.entities.Warehouse;
 import com.team.corporate.core.repositories.WarehousesRepository;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.repository.ListCrudRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,7 +14,7 @@ import java.util.UUID;
 
 @Repository
 @Transactional(readOnly = true)
-public interface SpringWarehousesRepository extends WarehousesRepository, ListCrudRepository<Warehouse, UUID> {
+public interface SpringWarehousesRepository extends WarehousesRepository, ListCrudRepository<Warehouse, UUID>, JpaSpecificationExecutor<Warehouse> {
     @Override
     @Transactional
     @NotNull

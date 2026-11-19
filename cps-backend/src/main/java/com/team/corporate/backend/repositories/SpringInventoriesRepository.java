@@ -4,6 +4,12 @@ import com.team.corporate.core.entities.Inventory;
 import com.team.corporate.core.repositories.InventoriesRepository;
 import jakarta.persistence.LockModeType;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.ListCrudRepository;
@@ -18,7 +24,7 @@ import java.util.UUID;
 
 @Repository
 @Transactional(readOnly = true)
-public interface SpringInventoriesRepository extends InventoriesRepository, ListCrudRepository<Inventory, UUID> {
+public interface SpringInventoriesRepository extends InventoriesRepository, ListCrudRepository<Inventory, UUID>, JpaSpecificationExecutor<Inventory> {
     String SELECT_QUERY = "SELECT i FROM Inventory i JOIN FETCH i.product p LEFT JOIN FETCH p.category JOIN FETCH i.warehouse";
 
     @Override
@@ -32,6 +38,11 @@ public interface SpringInventoriesRepository extends InventoriesRepository, List
     @Query(SELECT_QUERY)
     @NotNull
     List<Inventory> getAll();
+
+    @Override
+    @EntityGraph(attributePaths = {"product.category", "warehouse"})
+    @NonNull
+    Page<Inventory> findAll(@NonNull Specification<Inventory> spec, @NonNull Pageable page);
 
     @Override
     @Query(SELECT_QUERY + " WHERE i.id = :id")

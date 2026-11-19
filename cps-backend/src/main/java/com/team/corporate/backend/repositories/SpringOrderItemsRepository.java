@@ -12,15 +12,24 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
+
 
 @Repository
 @Transactional(readOnly = true)
 public interface SpringOrderItemsRepository extends OrderItemsRepository, ListCrudRepository<OrderItem, UUID> {
     String SELECT_QUERY = "SELECT i FROM OrderItem i JOIN FETCH i.order o JOIN FETCH o.user " +
             "JOIN FETCH i.product p LEFT JOIN FETCH p.category";
+
+    interface OrderTotal {
+        UUID getOrderId();
+        BigDecimal getTotalSum();
+    }
 
     @Override
     @Transactional
@@ -75,4 +84,15 @@ public interface SpringOrderItemsRepository extends OrderItemsRepository, ListCr
     default void delete(@NotNull UUID id) {
         deleteById(id);
     }
+
+    @Query("""
+        SELECT i.order.id AS orderId,
+               SUM(i.purchasePrice * i.quantity) AS totalSum
+        FROM OrderItem i
+        WHERE i.order.id IN :orderIds
+        GROUP BY i.order.id
+        """)
+    List<OrderTotal> findTotalSumsByOrderId(
+            @Param("orderIds") Collection<UUID> orderIds
+    );
 }

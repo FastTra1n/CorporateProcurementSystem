@@ -2,6 +2,8 @@ package com.team.corporate.core.entities;
 
 import com.team.corporate.core.utils.EntityValidation;
 import jakarta.persistence.*;
+import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SoftDeleteType;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
@@ -9,22 +11,31 @@ import java.util.UUID;
 @Entity
 @Table(name = "inventory", uniqueConstraints = @UniqueConstraint(
         name = "uk_inventory_product_warehouse", columnNames = {"product_id", "warehouse_id"}))
+@SoftDelete(
+        strategy = SoftDeleteType.TIMESTAMP,
+        columnName = "deleted_at"
+)
 public class Inventory {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    // EAGER нужен для работы soft delete.
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    // EAGER нужен для работы soft delete.
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "warehouse_id", nullable = false)
     private Warehouse warehouse;
 
     @Column(name = "quantity", nullable = false)
     private int quantity;
+
+    @Version
+    private Long version;
 
     public Inventory() {
     }

@@ -107,10 +107,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler({
             CategoryNotFoundException.class,
+            DeletedRecordNotFoundException.class,
             InventoryNotFoundException.class,
             OrderItemNotFoundException.class,
             OrderNotFoundException.class,
             ProductNotFoundException.class,
+            TagNotFoundException.class,
             UserNotFoundException.class,
             WarehouseNotFoundException.class
     })
@@ -129,6 +131,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             @NonNull WebRequest request
     ) {
         return problem(exception, HttpStatus.BAD_REQUEST, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(DeletedRecordConflictException.class)
+    @Nullable
+    public ResponseEntity<Object> handleDeletedRecordConflict(
+            @NonNull DeletedRecordConflictException exception,
+            @NonNull WebRequest request
+    ) {
+        var body = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+        body.setProperty("dependencies", exception.getDependencies());
+        return handleExceptionInternal(exception, body, new HttpHeaders(), HttpStatus.CONFLICT, request);
     }
 
     @Override
