@@ -1,0 +1,14 @@
+.git
+.gradle
+.idea
+.codex
+.agents
+**/build
+**/logs
+**/*.log
+**/src/test
+**/src/postgresTest
+.env
+.env.*
+**/*.pem
+**/*.key

@@ -48,9 +48,11 @@ public class SecurityConfig {
 
     @Bean
     @Order(1)
-    public SecurityFilterChain authenticationEndpoints(@NotNull HttpSecurity http) {
+    public SecurityFilterChain publicEndpoints(@NotNull HttpSecurity http) {
         return stateless(http)
-                .securityMatcher("/api/auth/login", "/api/auth/refresh", "/api/auth/logout")
+                .securityMatcher("/api/auth/login", "/api/auth/refresh", "/api/auth/logout",
+                        "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
+                        "/v3/api-docs.yaml", "/actuator/health")
                 .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
                 .build();
     }
@@ -70,6 +72,7 @@ public class SecurityConfig {
         };
         return stateless(http)
                 .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers("/actuator/**").denyAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/auth/password").authenticated()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

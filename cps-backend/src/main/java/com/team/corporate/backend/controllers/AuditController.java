@@ -7,6 +7,8 @@ import com.team.corporate.backend.entities.AuditEventType;
 import com.team.corporate.backend.filter.AuditFilter;
 import com.team.corporate.backend.filter.CorrelationIdFilter;
 import com.team.corporate.backend.services.AuditEventsService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
@@ -22,12 +24,14 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/audit")
+@Tag(name = "Аудит", description = "Только ADMIN после обязательной смены временного пароля.")
 public class AuditController {
     private final AuditEventsService events;
 
     public AuditController(AuditEventsService events) { this.events = events; }
 
     @GetMapping
+    @Operation(summary = "Найти события аудита", description = "Фильтры объединяются условием И. q ищет буквальную подстроку без учёта регистра в авторе, описании и Correlation ID. from/to — включительные границы ISO-8601. sort: occurredAt, id, actorId, actorUsername, eventType, entityType, entityId, correlationId; direction: asc/desc. По умолчанию сначала новые события; page с 0, size от 1 до 100.")
     public PageResponse<AuditEventResponse> getEvents(
             @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
             @RequestParam(name = "size", defaultValue = "20") @Min(1) @Max(100) int size,
